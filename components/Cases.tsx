@@ -1,6 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
+import LazyVideo from './LazyVideo';
 
 const cases = [
   {
@@ -65,12 +66,9 @@ export default function Cases() {
               transition={{ duration: 0.6, delay: i * 0.1 }}
               className="group relative aspect-[4/5] md:aspect-[16/11] rounded-3xl overflow-hidden border border-white/10 hover:border-lilac/40 transition-all"
             >
-              <video
+              <LazyVideo
                 src="/videos/showreel.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
+                poster="/videos/showreel-poster.jpg"
                 className="absolute inset-0 w-full h-full object-cover"
               />
               <div className={`absolute inset-0 bg-gradient-to-br ${c.color} mix-blend-overlay opacity-60`} />

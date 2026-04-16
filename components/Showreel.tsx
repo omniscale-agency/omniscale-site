@@ -1,5 +1,6 @@
 'use client';
 import { motion } from 'framer-motion';
+import LazyVideo from './LazyVideo';
 
 const row1 = [
   { title: 'Boutique mode — Lyon', cat: 'Reels Instagram' },
@@ -20,12 +21,9 @@ const row2 = [
 function VideoCard({ title, cat }: { title: string; cat: string }) {
   return (
     <div className="video-card w-[220px] md:w-[280px]" data-cursor-hover>
-      <video
+      <LazyVideo
         src="/videos/showreel.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
+        poster="/videos/showreel-poster.jpg"
         className="absolute inset-0 w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
@@ -73,7 +71,7 @@ export default function Showreel() {
       {/* Rangée 1 — défile vers la gauche */}
       <div className="relative mb-6">
         <div className="video-marquee">
-          {[...row1, ...row1, ...row1].map((v, i) => (
+          {[...row1, ...row1].map((v, i) => (
             <VideoCard key={`r1-${i}`} {...v} />
           ))}
         </div>
@@ -85,7 +83,7 @@ export default function Showreel() {
       {/* Rangée 2 — défile vers la droite */}
       <div className="relative">
         <div className="video-marquee reverse">
-          {[...row2, ...row2, ...row2].map((v, i) => (
+          {[...row2, ...row2].map((v, i) => (
             <VideoCard key={`r2-${i}`} {...v} />
           ))}
         </div>
