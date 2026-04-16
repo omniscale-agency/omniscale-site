@@ -1,6 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Mail, Phone, MapPin } from 'lucide-react';
+import { ArrowUpRight, Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import { CALENDLY_URL, CONTACT_EMAIL } from '@/lib/config';
 
 export default function Contact() {
   return (
@@ -31,18 +32,28 @@ export default function Contact() {
             Audit offert, sans engagement. On te dit franchement si on peut t'aider — et comment.
           </p>
 
-          <a
-            href="mailto:hello@omniscale.fr"
-            className="btn-shine inline-flex items-center gap-3 bg-lilac text-ink font-semibold px-10 py-5 rounded-full text-lg hover:bg-white transition-colors mb-16"
-          >
-            hello@omniscale.fr <ArrowUpRight size={22} />
-          </a>
+          <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
+            <a
+              href={CALENDLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-shine inline-flex items-center gap-3 bg-lilac text-ink font-semibold px-10 py-5 rounded-full text-lg hover:bg-white transition-colors"
+            >
+              <Calendar size={22} /> Réserver un appel gratuit (15 min)
+            </a>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="inline-flex items-center gap-3 text-white border border-white/20 hover:border-lilac hover:text-lilac font-medium px-10 py-5 rounded-full text-lg transition-all"
+            >
+              {CONTACT_EMAIL} <ArrowUpRight size={20} />
+            </a>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12 border-t border-white/10">
             <div className="flex flex-col items-center gap-3">
               <Mail className="text-lilac" size={22} />
               <div className="text-white/50 text-sm">Email</div>
-              <a href="mailto:hello@omniscale.fr" className="text-white hover:text-lilac">hello@omniscale.fr</a>
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-white hover:text-lilac">{CONTACT_EMAIL}</a>
             </div>
             <div className="flex flex-col items-center gap-3">
               <Phone className="text-lilac" size={22} />

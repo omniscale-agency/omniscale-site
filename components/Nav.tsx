@@ -3,13 +3,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
+import { CALENDLY_URL } from '@/lib/config';
 
 const links = [
   { href: '#services', label: 'Services' },
   { href: '#showreel', label: 'Showreel' },
   { href: '#cas', label: 'Cas clients' },
   { href: '#process', label: 'Process' },
-  { href: '#agence', label: 'Agence' },
+  { href: '#faq', label: 'FAQ' },
   { href: '#contact', label: 'Contact' },
 ];
 
@@ -55,10 +56,12 @@ export default function Nav() {
           </nav>
 
           <a
-            href="#contact"
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="hidden md:inline-flex btn-shine items-center gap-2 bg-lilac text-ink font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-white transition-colors"
           >
-            Démarrer un projet
+            Réserver un appel
           </a>
 
           <button onClick={() => setOpen(true)} className="md:hidden text-white" aria-label="Menu">

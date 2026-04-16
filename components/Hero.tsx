@@ -1,8 +1,9 @@
 'use client';
 import { motion } from 'framer-motion';
-import { ArrowDown, ArrowUpRight } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, Calendar } from 'lucide-react';
 import TypewriterCycle from './TypewriterCycle';
 import Counter from './Counter';
+import { CALENDLY_URL } from '@/lib/config';
 
 export default function Hero() {
   return (
@@ -65,10 +66,12 @@ export default function Hero() {
           className="mt-12 flex flex-wrap items-center gap-4"
         >
           <a
-            href="#contact"
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn-shine inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-7 py-4 rounded-full hover:bg-white transition-colors"
           >
-            Démarrer un projet <ArrowUpRight size={18} />
+            <Calendar size={18} /> Réserver un appel gratuit
           </a>
           <a
             href="#showreel"
