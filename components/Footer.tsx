@@ -1,0 +1,56 @@
+'use client';
+import Logo from './Logo';
+import { Instagram, Linkedin } from 'lucide-react';
+
+export default function Footer() {
+  return (
+    <footer className="relative border-t border-white/10 py-16 px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-lilac rounded-xl p-1.5">
+                <Logo size={28} color="#0a0a12" />
+              </div>
+              <span className="font-display text-xl font-bold">omniscale</span>
+            </div>
+            <p className="text-white/60 max-w-md">
+              On scale les commerces physiques et e-commerce. Social media, ads,
+              sites internet, marketing d'influence.
+            </p>
+          </div>
+
+          <div>
+            <div className="text-white font-semibold mb-4">Navigation</div>
+            <ul className="space-y-2 text-white/60 text-sm">
+              <li><a href="#services" className="hover:text-lilac">Services</a></li>
+              <li><a href="#showreel" className="hover:text-lilac">Showreel</a></li>
+              <li><a href="#cas" className="hover:text-lilac">Cas clients</a></li>
+              <li><a href="#agence" className="hover:text-lilac">Agence</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="text-white font-semibold mb-4">Suivez-nous</div>
+            <div className="flex gap-3">
+              <a href="#" className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center hover:bg-lilac hover:text-ink hover:border-lilac transition-all">
+                <Instagram size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center hover:bg-lilac hover:text-ink hover:border-lilac transition-all">
+                <Linkedin size={18} />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-white/40">
+          <div>© {new Date().getFullYear()} Omniscale — Tous droits réservés.</div>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-lilac">Mentions légales</a>
+            <a href="#" className="hover:text-lilac">Confidentialité</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
