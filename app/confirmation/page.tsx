@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, CheckCircle2, Video, Mail, Sparkles } from 'lucide-react';
 import Logo from '@/components/Logo';
+import Socials from '@/components/Socials';
 import { CONTACT_EMAIL } from '@/lib/config';
 
 function formatDate(iso: string) {
@@ -137,16 +138,71 @@ function ConfirmationContent() {
           {firstName ? <>Félicitations, <span className="text-gradient">{firstName}</span>&nbsp;!</> : <>Félicitations <span className="text-gradient">pour votre réservation&nbsp;!</span></>}
         </motion.h1>
 
-        <motion.p
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="text-lg md:text-xl text-white/70 mb-12 max-w-2xl leading-relaxed"
+          className="text-lg text-white/80 mb-10 max-w-2xl leading-relaxed space-y-4"
         >
-          Ton créneau est réservé. On a hâte d'échanger avec toi sur ton projet
-          {fullName ? '' : ''}. Tu vas recevoir une confirmation par email avec
-          le lien visio.
-        </motion.p>
+          <p>
+            Tu viens de poser la première pierre pour <span className="text-white font-medium">faire passer ton commerce au niveau supérieur</span>. Et ça, c'est déjà 90% de la marche que la plupart ne franchissent jamais.
+          </p>
+          <p>
+            Pendant ces 45 minutes, on va auditer ensemble ton business : ce qui marche, ce qui te bloque, et surtout les <span className="text-lilac font-medium">3 leviers concrets</span> que tu peux activer dans les 30 prochains jours pour générer plus de chiffre — que tu bosses avec nous ensuite ou pas.
+          </p>
+          <p className="text-white/60">
+            Tu vas recevoir une confirmation par email avec le lien visio. À très vite.
+          </p>
+        </motion.div>
+
+        {/* Bloc valeur */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-12"
+        >
+          {[
+            { n: '01', t: 'Audit complet', d: 'On passe au scanner ton acquisition, ton contenu et ton funnel.' },
+            { n: '02', t: 'Plan d\'action', d: '3 leviers concrets activables sous 30 jours, chiffrés.' },
+            { n: '03', t: 'Sans engagement', d: 'Aucune pression commerciale. Tu pars avec de la valeur, point.' },
+          ].map((b) => (
+            <div key={b.n} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className="text-lilac text-xs font-semibold tracking-widest mb-2">{b.n}</div>
+              <div className="font-display font-bold mb-1">{b.t}</div>
+              <div className="text-sm text-white/60 leading-relaxed">{b.d}</div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Vidéo de félicitations (format horizontal 16:9) */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="mb-12 rounded-3xl overflow-hidden border border-lilac/20 bg-gradient-to-br from-omni-900/30 to-black relative aspect-video shadow-2xl shadow-lilac/10"
+        >
+          {/* TODO: remplacer par la vraie vidéo de félicitations */}
+          {/* Quand prête, déposer le fichier dans public/videos/welcome.mp4 + welcome-poster.jpg
+              et remplacer ce placeholder par :
+              <video src="/videos/welcome.mp4" poster="/videos/welcome-poster.jpg"
+                     autoPlay muted loop playsInline controls
+                     className="absolute inset-0 w-full h-full object-cover" />
+          */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-20 h-20 rounded-full bg-lilac/20 border border-lilac/40 flex items-center justify-center mb-5 animate-pulse">
+              <Video className="text-lilac" size={32} />
+            </div>
+            <div className="font-display text-2xl md:text-3xl font-bold mb-2">
+              Un petit mot de l'équipe
+            </div>
+            <div className="text-white/60 text-sm max-w-md">
+              Vidéo de bienvenue à venir — l'équipe Omniscale t'accueille personnellement
+              avant l'appel.
+            </div>
+          </div>
+          <div className="absolute inset-0 halftone-dense opacity-20 pointer-events-none" />
+        </motion.div>
 
         {/* Details card */}
         <motion.div
@@ -245,11 +301,33 @@ function ConfirmationContent() {
           </ul>
         </motion.div>
 
+        {/* Socials */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.5 }}
+          className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 mb-8 text-center"
+        >
+          <div className="text-xs uppercase tracking-widest text-white/50 mb-2">
+            En attendant le RDV
+          </div>
+          <div className="font-display text-2xl font-bold mb-4">
+            Suis-nous sur les réseaux
+          </div>
+          <p className="text-white/60 text-sm max-w-md mx-auto mb-6">
+            Tips marketing, coulisses des campagnes clients et résultats en
+            temps réel — chaque semaine.
+          </p>
+          <div className="flex justify-center">
+            <Socials />
+          </div>
+        </motion.div>
+
         {/* Footer actions */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
+          transition={{ duration: 0.7, delay: 0.6 }}
           className="text-center text-white/60 text-sm space-y-2"
         >
           <p>
