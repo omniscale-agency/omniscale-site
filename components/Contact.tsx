@@ -1,7 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Mail, Phone, MapPin, Calendar } from 'lucide-react';
-import { BOOKING_URL, CONTACT_EMAIL } from '@/lib/config';
+import { BOOKING_URL, CONTACT_EMAIL, PHONE_NUMBER, PHONE_HREF } from '@/lib/config';
+import Socials from './Socials';
 
 export default function Contact() {
   return (
@@ -58,13 +59,18 @@ export default function Contact() {
             <div className="flex flex-col items-center gap-3">
               <Phone className="text-lilac" size={22} />
               <div className="text-white/50 text-sm">Téléphone</div>
-              <a href="tel:+33000000000" className="text-white hover:text-lilac">+33 (0) — — —</a>
+              <a href={PHONE_HREF} className="text-white hover:text-lilac">{PHONE_NUMBER}</a>
             </div>
             <div className="flex flex-col items-center gap-3">
               <MapPin className="text-lilac" size={22} />
               <div className="text-white/50 text-sm">Bureaux</div>
               <span className="text-white">Paris · Lyon</span>
             </div>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center gap-4">
+            <div className="text-white/50 text-sm uppercase tracking-widest">Suis-nous</div>
+            <Socials />
           </div>
         </motion.div>
       </div>

@@ -134,7 +134,7 @@ function ConfirmationContent() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="font-display text-5xl md:text-7xl font-bold tracking-tighter leading-[0.95] mb-6"
         >
-          {firstName ? <>Merci, <span className="text-gradient">{firstName}</span>.</> : <>Merci, <span className="text-gradient">on est cool.</span></>}
+          {firstName ? <>Félicitations, <span className="text-gradient">{firstName}</span>&nbsp;!</> : <>Félicitations <span className="text-gradient">pour votre réservation&nbsp;!</span></>}
         </motion.h1>
 
         <motion.p

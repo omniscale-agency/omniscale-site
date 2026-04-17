@@ -1,6 +1,6 @@
 'use client';
 import Logo from './Logo';
-import { Instagram, Linkedin } from 'lucide-react';
+import Socials from './Socials';
 
 export default function Footer() {
   return (
@@ -27,19 +27,13 @@ export default function Footer() {
               <li><a href="#showreel" className="hover:text-lilac">Showreel</a></li>
               <li><a href="#cas" className="hover:text-lilac">Cas clients</a></li>
               <li><a href="#agence" className="hover:text-lilac">Agence</a></li>
+              <li><a href="#faq" className="hover:text-lilac">FAQ</a></li>
             </ul>
           </div>
 
           <div>
             <div className="text-white font-semibold mb-4">Suivez-nous</div>
-            <div className="flex gap-3">
-              <a href="#" className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center hover:bg-lilac hover:text-ink hover:border-lilac transition-all">
-                <Instagram size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center hover:bg-lilac hover:text-ink hover:border-lilac transition-all">
-                <Linkedin size={18} />
-              </a>
-            </div>
+            <Socials size="sm" />
           </div>
         </div>
 
