@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogIn } from 'lucide-react';
 import Logo from './Logo';
 import { BOOKING_URL } from '@/lib/config';
 
@@ -55,14 +55,22 @@ export default function Nav() {
             ))}
           </nav>
 
-          <a
-            href={BOOKING_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden md:inline-flex btn-shine items-center gap-2 bg-lilac text-ink font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-white transition-colors"
-          >
-            Réserver un appel
-          </a>
+          <div className="hidden md:flex items-center gap-3">
+            <a
+              href="/login"
+              className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-lilac border border-white/15 hover:border-lilac/40 px-4 py-2 rounded-full transition-all"
+            >
+              <LogIn size={14} /> Se connecter
+            </a>
+            <a
+              href={BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-shine inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-white transition-colors"
+            >
+              Réserver un appel
+            </a>
+          </div>
 
           <button onClick={() => setOpen(true)} className="md:hidden text-white" aria-label="Menu">
             <Menu size={28} />
@@ -98,6 +106,16 @@ export default function Nav() {
                   {l.label}
                 </motion.a>
               ))}
+              <motion.a
+                href="/login"
+                onClick={() => setOpen(false)}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: links.length * 0.05 }}
+                className="font-display text-2xl font-medium text-lilac hover:text-white transition-colors inline-flex items-center gap-2 mt-4"
+              >
+                <LogIn size={20} /> Se connecter
+              </motion.a>
             </nav>
           </motion.div>
         )}
