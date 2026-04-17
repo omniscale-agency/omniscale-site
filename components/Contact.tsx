@@ -39,7 +39,7 @@ export default function Contact() {
               rel="noopener noreferrer"
               className="btn-shine inline-flex items-center gap-3 bg-lilac text-ink font-semibold px-10 py-5 rounded-full text-lg hover:bg-white transition-colors"
             >
-              <Calendar size={22} /> Réserver un appel gratuit (15 min)
+              <Calendar size={22} /> Réserver un appel gratuit (45 min)
             </a>
             <a
               href={`mailto:${CONTACT_EMAIL}`}

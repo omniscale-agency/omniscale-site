@@ -30,7 +30,7 @@ const faqs = [
   },
   {
     q: "Comment se passe le premier rendez-vous ?",
-    a: "15 min en visio (gratuit, sans engagement). On comprend ton commerce, tes objectifs, ton historique. On te dit honnêtement si on peut t'aider. Si oui, on planifie l'audit complet.",
+    a: "45 min en visio (gratuit, sans engagement). On comprend ton commerce, tes objectifs, ton historique. On te dit honnêtement si on peut t'aider. Si oui, on planifie l'audit complet.",
   },
   {
     q: "Vous gérez les budgets pub directement ?",
