@@ -55,7 +55,7 @@ function buildGoogleCalendarUrl(params: {
   return url.toString();
 }
 
-// Placeholders pour les 12 vidéos YouTube témoignages clients (à remplir plus tard)
+// Placeholders pour les 6 vidéos YouTube témoignages clients (à remplir plus tard)
 // Format: { title, ytId } — quand tu as les vraies vidéos, mets l'ID YouTube (la partie après "v=" dans l'URL)
 const testimonialVideos: Array<{ title: string; ytId?: string }> = [
   { title: 'Témoignage client 1' },
@@ -64,12 +64,6 @@ const testimonialVideos: Array<{ title: string; ytId?: string }> = [
   { title: 'Témoignage client 4' },
   { title: 'Témoignage client 5' },
   { title: 'Témoignage client 6' },
-  { title: 'Témoignage client 7' },
-  { title: 'Témoignage client 8' },
-  { title: 'Témoignage client 9' },
-  { title: 'Témoignage client 10' },
-  { title: 'Témoignage client 11' },
-  { title: 'Témoignage client 12' },
 ];
 
 function ConfirmationContent() {
@@ -325,37 +319,15 @@ function ConfirmationContent() {
             <Youtube size={18} /> Accéder à la chaîne YouTube d'Omniscale
           </a>
         </motion.section>
+      </div>
 
-        {/* Socials */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.5 }}
-          className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 mb-16 text-center"
-        >
-          <div className="text-xs uppercase tracking-widest text-white/50 mb-2">
-            En attendant le RDV
-          </div>
-          <div className="font-display text-2xl font-bold mb-4">
-            Suis-nous sur les réseaux
-          </div>
-          <p className="text-white/60 text-sm max-w-md mx-auto mb-6">
-            Tips marketing, coulisses des campagnes clients et résultats en
-            temps réel — chaque semaine.
-          </p>
-          <div className="flex justify-center">
-            <Socials />
-          </div>
-        </motion.div>
-
-        {/* Témoignages YouTube — 2x6 */}
+      {/* === Section témoignages YouTube — wide container === */}
+      <div className="relative max-w-6xl mx-auto px-6 mb-16">
         <motion.section
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6 }}
-          className="mb-16"
         >
           <div className="text-center mb-10">
             <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight mb-3">
@@ -367,7 +339,7 @@ function ConfirmationContent() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
             {testimonialVideos.map((v, i) => (
               <div
                 key={i}
@@ -385,8 +357,8 @@ function ConfirmationContent() {
                   <>
                     <div className="absolute inset-0 placeholder-shimmer opacity-30" />
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <div className="w-14 h-14 rounded-full bg-lilac/90 group-hover:bg-white flex items-center justify-center transition-colors mb-3">
-                        <Play size={22} fill="currentColor" className="text-ink ml-0.5" />
+                      <div className="w-16 h-16 rounded-full bg-lilac/90 group-hover:bg-white flex items-center justify-center transition-colors mb-3 shadow-2xl shadow-lilac/30">
+                        <Play size={26} fill="currentColor" className="text-ink ml-0.5" />
                       </div>
                       <div className="text-xs uppercase tracking-widest text-white/40">
                         Vidéo à venir
@@ -409,6 +381,32 @@ function ConfirmationContent() {
             </a>
           </div>
         </motion.section>
+      </div>
+
+      {/* === Socials + footer (retour dans container narrow) === */}
+      <div className="relative max-w-3xl mx-auto px-6 pb-12 md:pb-20">
+        {/* Socials */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.5 }}
+          className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 mb-16 text-center"
+        >
+          <div className="text-xs uppercase tracking-widest text-white/50 mb-2">
+            En attendant le RDV
+          </div>
+          <div className="font-display text-2xl font-bold mb-4">
+            Suis-nous sur les réseaux
+          </div>
+          <p className="text-white/60 text-sm max-w-md mx-auto mb-6">
+            Tips marketing, coulisses des campagnes clients et résultats en
+            temps réel — chaque semaine.
+          </p>
+          <div className="flex justify-center">
+            <Socials />
+          </div>
+        </motion.div>
 
         {/* Footer actions */}
         <motion.div
