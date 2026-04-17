@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Mail, Phone, MapPin, Calendar } from 'lucide-react';
-import { CALENDLY_URL, CONTACT_EMAIL } from '@/lib/config';
+import { BOOKING_URL, CONTACT_EMAIL } from '@/lib/config';
 
 export default function Contact() {
   return (
@@ -34,7 +34,7 @@ export default function Contact() {
 
           <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
             <a
-              href={CALENDLY_URL}
+              href={BOOKING_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-shine inline-flex items-center gap-3 bg-lilac text-ink font-semibold px-10 py-5 rounded-full text-lg hover:bg-white transition-colors"

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import Logo from './Logo';
-import { CALENDLY_URL } from '@/lib/config';
+import { BOOKING_URL } from '@/lib/config';
 
 const links = [
   { href: '#services', label: 'Services' },
@@ -56,7 +56,7 @@ export default function Nav() {
           </nav>
 
           <a
-            href={CALENDLY_URL}
+            href={BOOKING_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="hidden md:inline-flex btn-shine items-center gap-2 bg-lilac text-ink font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-white transition-colors"
