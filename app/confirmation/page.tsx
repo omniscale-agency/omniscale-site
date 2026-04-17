@@ -2,10 +2,10 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, CheckCircle2, Video, Mail, Sparkles } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Video, Mail, Play, Youtube } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
-import { CONTACT_EMAIL } from '@/lib/config';
+import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
 
 function formatDate(iso: string) {
   if (!iso) return { date: '', time: '' };
@@ -55,6 +55,23 @@ function buildGoogleCalendarUrl(params: {
   return url.toString();
 }
 
+// Placeholders pour les 12 vidéos YouTube témoignages clients (à remplir plus tard)
+// Format: { title, ytId } — quand tu as les vraies vidéos, mets l'ID YouTube (la partie après "v=" dans l'URL)
+const testimonialVideos: Array<{ title: string; ytId?: string }> = [
+  { title: 'Témoignage client 1' },
+  { title: 'Témoignage client 2' },
+  { title: 'Témoignage client 3' },
+  { title: 'Témoignage client 4' },
+  { title: 'Témoignage client 5' },
+  { title: 'Témoignage client 6' },
+  { title: 'Témoignage client 7' },
+  { title: 'Témoignage client 8' },
+  { title: 'Témoignage client 9' },
+  { title: 'Témoignage client 10' },
+  { title: 'Témoignage client 11' },
+  { title: 'Témoignage client 12' },
+];
+
 function ConfirmationContent() {
   const sp = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -67,7 +84,6 @@ function ConfirmationContent() {
   const eventName = sp.get('event_type_name') || 'Appel découverte';
   const start = sp.get('event_start_time') || '';
   const end = sp.get('event_end_time') || '';
-  const phone = sp.get('text_reminder_number') || '';
   const closer = sp.get('assigned_to') || '';
 
   const { date, time } = formatDate(start);
@@ -148,14 +164,14 @@ function ConfirmationContent() {
             Tu viens de poser la première pierre pour <span className="text-white font-medium">faire passer ton commerce au niveau supérieur</span>. Et ça, c'est déjà 90% de la marche que la plupart ne franchissent jamais.
           </p>
           <p>
-            Pendant ces 45 minutes, on va auditer ensemble ton business : ce qui marche, ce qui te bloque, et surtout les <span className="text-lilac font-medium">3 leviers concrets</span> que tu peux activer dans les 30 prochains jours pour générer plus de chiffre — que tu bosses avec nous ensuite ou pas.
+            Pendant ces 45 minutes, on va auditer ensemble ton business : ce qui marche, ce qui te bloque, et surtout les <span className="text-lilac font-medium">3 leviers concrets</span> que tu peux activer dans les 30 prochains jours pour générer plus de chiffre, que tu bosses avec nous ensuite ou pas.
           </p>
           <p className="text-white/60">
             Tu vas recevoir une confirmation par email avec le lien visio. À très vite.
           </p>
         </motion.div>
 
-        {/* Bloc valeur */}
+        {/* Bloc valeur (01/02/03) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -183,12 +199,6 @@ function ConfirmationContent() {
           className="mb-12 rounded-3xl overflow-hidden border border-lilac/20 bg-gradient-to-br from-omni-900/30 to-black relative aspect-video shadow-2xl shadow-lilac/10"
         >
           {/* TODO: remplacer par la vraie vidéo de félicitations */}
-          {/* Quand prête, déposer le fichier dans public/videos/welcome.mp4 + welcome-poster.jpg
-              et remplacer ce placeholder par :
-              <video src="/videos/welcome.mp4" poster="/videos/welcome-poster.jpg"
-                     autoPlay muted loop playsInline controls
-                     className="absolute inset-0 w-full h-full object-cover" />
-          */}
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
             <div className="w-20 h-20 rounded-full bg-lilac/20 border border-lilac/40 flex items-center justify-center mb-5 animate-pulse">
               <Video className="text-lilac" size={32} />
@@ -204,11 +214,11 @@ function ConfirmationContent() {
           <div className="absolute inset-0 halftone-dense opacity-20 pointer-events-none" />
         </motion.div>
 
-        {/* Details card */}
+        {/* Details card (Date, Heure, Email — sans Format ni Visio) */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.3 }}
+          transition={{ duration: 0.7, delay: 0.35 }}
           className="rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur p-6 md:p-8 mb-8"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -238,18 +248,8 @@ function ConfirmationContent() {
               </div>
             )}
 
-            <div className="flex items-start gap-4">
-              <div className="w-11 h-11 rounded-xl bg-lilac/10 border border-lilac/30 flex items-center justify-center shrink-0">
-                <Video className="text-lilac" size={20} />
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-widest text-white/50 mb-1">Format</div>
-                <div className="font-display font-semibold">Visio (lien envoyé par email)</div>
-              </div>
-            </div>
-
             {email && (
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4 md:col-span-2">
                 <div className="w-11 h-11 rounded-xl bg-lilac/10 border border-lilac/30 flex items-center justify-center shrink-0">
                   <Mail className="text-lilac" size={20} />
                 </div>
@@ -275,38 +275,64 @@ function ConfirmationContent() {
           )}
         </motion.div>
 
-        {/* Prepare section */}
-        <motion.div
+        {/* Prochaines étapes */}
+        <motion.section
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
-          className="rounded-3xl border border-lilac/20 bg-lilac/5 p-6 md:p-8 mb-8"
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6 }}
+          className="mb-16 text-center"
         >
-          <div className="flex items-center gap-2 mb-5">
-            <Sparkles className="text-lilac" size={20} />
-            <h2 className="font-display text-2xl font-bold">Pour préparer l'appel</h2>
-          </div>
-          <ul className="space-y-3 text-white/80">
+          <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight mb-3">
+            Prochaines <span className="text-gradient">étapes</span>
+          </h2>
+          <p className="text-white/60 mb-10 max-w-xl mx-auto">
+            Voici comment on va démarrer ensemble.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             {[
-              "Réfléchis à ton objectif principal sur les 6 prochains mois (CA, ouverture de boutique, lancement produit…)",
-              "Note ton CA mensuel actuel et tes canaux d'acquisition existants",
-              "Prépare 1 ou 2 questions précises que tu veux qu'on traite",
-              "Si possible, ouvre tes statistiques (Insta, Meta Business, Shopify) pendant l'appel",
-            ].map((tip, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="text-lilac mt-1">→</span>
-                <span>{tip}</span>
-              </li>
+              {
+                Icon: Mail,
+                t: 'Confirmation par email',
+                d: 'Tu vas recevoir un email avec tous les détails de ton rendez-vous et le lien visio.',
+              },
+              {
+                Icon: Calendar,
+                t: 'Premier rendez-vous',
+                d: "On se retrouve en visio au créneau réservé pour faire l'audit complet de ton business.",
+              },
+              {
+                Icon: Youtube,
+                t: 'Va voir notre chaîne YouTube',
+                d: 'Découvre des cas clients, conseils marketing et stratégies pour scaler ton business.',
+              },
+            ].map(({ Icon, t, d }) => (
+              <div key={t} className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center">
+                <div className="w-12 h-12 rounded-xl bg-lilac/10 border border-lilac/30 flex items-center justify-center mx-auto mb-4">
+                  <Icon className="text-lilac" size={22} />
+                </div>
+                <div className="font-display font-bold text-lg mb-2">{t}</div>
+                <div className="text-sm text-white/60 leading-relaxed">{d}</div>
+              </div>
             ))}
-          </ul>
-        </motion.div>
+          </div>
+          <a
+            href={YOUTUBE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-3 rounded-full text-sm transition-colors"
+          >
+            <Youtube size={18} /> Accéder à la chaîne YouTube d'Omniscale
+          </a>
+        </motion.section>
 
         {/* Socials */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
-          className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 mb-8 text-center"
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.5 }}
+          className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8 mb-16 text-center"
         >
           <div className="text-xs uppercase tracking-widest text-white/50 mb-2">
             En attendant le RDV
@@ -322,6 +348,67 @@ function ConfirmationContent() {
             <Socials />
           </div>
         </motion.div>
+
+        {/* Témoignages YouTube — 2x6 */}
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6 }}
+          className="mb-16"
+        >
+          <div className="text-center mb-10">
+            <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight mb-3">
+              Ce que disent <span className="text-gradient">nos clients</span>
+            </h2>
+            <p className="text-white/60 max-w-xl mx-auto">
+              Des témoignages authentiques de commerces qu'on a aidés à passer
+              à l'échelle.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {testimonialVideos.map((v, i) => (
+              <div
+                key={i}
+                className="group relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-omni-900/20 to-black hover:border-lilac/40 transition-colors cursor-pointer"
+              >
+                {v.ytId ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${v.ytId}`}
+                    title={v.title}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 placeholder-shimmer opacity-30" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="w-14 h-14 rounded-full bg-lilac/90 group-hover:bg-white flex items-center justify-center transition-colors mb-3">
+                        <Play size={22} fill="currentColor" className="text-ink ml-0.5" />
+                      </div>
+                      <div className="text-xs uppercase tracking-widest text-white/40">
+                        Vidéo à venir
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-8">
+            <a
+              href={YOUTUBE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-white/70 hover:text-lilac transition-colors text-sm"
+            >
+              <Youtube size={16} /> Voir tous les témoignages sur YouTube →
+            </a>
+          </div>
+        </motion.section>
 
         {/* Footer actions */}
         <motion.div
