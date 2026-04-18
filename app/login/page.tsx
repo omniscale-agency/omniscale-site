@@ -172,7 +172,10 @@ export default function LoginPage() {
           <div>🛡️ Admin : <code className="text-lilac">admin@omniscale.fr</code> / <code className="text-lilac">admin2026</code> (cocher la case admin)</div>
         </div>
 
-        <div className="mt-6 text-center text-sm text-white/40">
+        <div className="mt-6 text-center text-sm text-white/60">
+          Pas encore de compte ? <a href="/signup" className="text-lilac hover:underline font-medium">Créer un compte</a>
+        </div>
+        <div className="mt-3 text-center text-sm text-white/40">
           <a href="/" className="hover:text-lilac">← Retour au site</a>
         </div>
       </motion.div>

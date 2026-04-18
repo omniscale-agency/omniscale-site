@@ -1,7 +1,9 @@
 'use client';
 
 export interface InvoiceLine {
-  description: string;
+  productName?: string;     // ex: "Accompagnement marketing"
+  description: string;      // détails complémentaires
+  duration?: string;        // ex: "3 mois", "12 séances"
   quantity: number;
   unitPrice: number;
 }

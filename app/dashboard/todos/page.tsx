@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { CheckSquare, Square, Clock, BadgePlus } from 'lucide-react';
-import { getSession } from '@/lib/auth';
+import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug } from '@/lib/mockData';
 import { getExtraTodos, toggleTodo as toggleExtra, subscribe } from '@/lib/sharedStore';
+import RoleGate from '@/components/RoleGate';
 
 export default function TodosPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
   const [todos, setTodos] = useState<ClientData['todos']>([]);
   const [extras, setExtras] = useState<ClientData['todos']>([]);
@@ -14,6 +16,7 @@ export default function TodosPage() {
   useEffect(() => {
     const s = getSession();
     if (!s) return;
+    setSession(s);
     const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
     if (c) {
       setClient(c);
@@ -29,6 +32,9 @@ export default function TodosPage() {
   }, [client]);
 
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session?.role === 'lead') {
+    return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Liste des tâches"><></></RoleGate>;
+  }
 
   const all = [...extras, ...todos];
   const visible = all.filter((t) =>

@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Eye, Heart, MessageCircle, Share2, Video as VideoIcon } from 'lucide-react';
-import { getSession } from '@/lib/auth';
+import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug, formatNumber } from '@/lib/mockData';
+import RoleGate from '@/components/RoleGate';
 
 const PLATFORM_COLORS: Record<string, string> = {
   instagram: 'from-fuchsia-500 to-orange-500',
@@ -11,17 +12,22 @@ const PLATFORM_COLORS: Record<string, string> = {
 };
 
 export default function VideosPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
   const [filter, setFilter] = useState<'all' | 'instagram' | 'tiktok' | 'youtube'>('all');
 
   useEffect(() => {
     const s = getSession();
     if (!s) return;
+    setSession(s);
     const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
     setClient(c || CLIENTS[0]);
   }, []);
 
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session?.role === 'lead') {
+    return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Bibliothèque vidéos"><></></RoleGate>;
+  }
 
   const visible = filter === 'all' ? client.videos : client.videos.filter(v => v.platform === filter);
   const totalViews = client.videos.reduce((s, v) => s + v.views, 0);

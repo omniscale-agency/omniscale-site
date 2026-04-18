@@ -1,18 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Target, Trophy } from 'lucide-react';
-import { getSession } from '@/lib/auth';
+import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug, formatCurrency } from '@/lib/mockData';
+import RoleGate from '@/components/RoleGate';
 
 export default function ObjectivesPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
   useEffect(() => {
     const s = getSession();
     if (!s) return;
+    setSession(s);
     setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
   }, []);
 
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session?.role === 'lead') {
+    return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Objectifs trimestriels"><></></RoleGate>;
+  }
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-5xl mx-auto">

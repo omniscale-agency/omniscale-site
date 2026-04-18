@@ -23,7 +23,7 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
   const [issuedAt, setIssuedAt] = useState(today);
   const [dueAt, setDueAt] = useState(dueDefault);
   const [lines, setLines] = useState<InvoiceLine[]>([
-    { description: 'Accompagnement marketing — mois en cours', quantity: 1, unitPrice: 2500 },
+    { productName: 'Accompagnement marketing', description: 'Stratégie social media + ads + suivi hebdomadaire', duration: '1 mois', quantity: 1, unitPrice: 2500 },
   ]);
   const [vatRate, setVatRate] = useState(20);
   const [notes, setNotes] = useState('');
@@ -37,7 +37,7 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
   const updateLine = (i: number, patch: Partial<InvoiceLine>) =>
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
-  const addLine = () => setLines((prev) => [...prev, { description: '', quantity: 1, unitPrice: 0 }]);
+  const addLine = () => setLines((prev) => [...prev, { productName: '', description: '', duration: '', quantity: 1, unitPrice: 0 }]);
   const removeLine = (i: number) => setLines((prev) => prev.filter((_, idx) => idx !== i));
 
   const buildDoc = () => ({
@@ -164,36 +164,65 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Lignes</label>
-                  <div className="space-y-2">
+                  <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Lignes / produits</label>
+                  <div className="space-y-3">
                     {lines.map((line, i) => (
-                      <div key={i} className="flex gap-2">
+                      <div key={i} className="rounded-lg bg-white/[0.03] border border-white/10 p-3 space-y-2 relative">
+                        <button
+                          onClick={() => removeLine(i)}
+                          className="absolute top-2 right-2 text-white/30 hover:text-red-400"
+                          disabled={lines.length === 1}
+                          type="button"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                         <input
+                          value={line.productName || ''}
+                          onChange={(e) => updateLine(i, { productName: e.target.value })}
+                          placeholder="Nom du produit / prestation (ex: Accompagnement marketing)"
+                          className={inputCls + ' font-semibold'}
+                        />
+                        <textarea
                           value={line.description}
                           onChange={(e) => updateLine(i, { description: e.target.value })}
-                          placeholder="Description"
-                          className={inputCls + ' flex-1'}
+                          placeholder="Description détaillée (livrables, périmètre, modalités…)"
+                          rows={2}
+                          className={inputCls + ' resize-none text-xs'}
                         />
-                        <input
-                          type="number"
-                          value={line.quantity}
-                          onChange={(e) => updateLine(i, { quantity: parseFloat(e.target.value) || 0 })}
-                          className={inputCls + ' w-16'}
-                          step={1}
-                        />
-                        <input
-                          type="number"
-                          value={line.unitPrice}
-                          onChange={(e) => updateLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
-                          className={inputCls + ' w-24'}
-                          step={50}
-                        />
-                        <button onClick={() => removeLine(i)} className="text-white/40 hover:text-red-400 p-2" disabled={lines.length === 1}>
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Durée</label>
+                            <input
+                              value={line.duration || ''}
+                              onChange={(e) => updateLine(i, { duration: e.target.value })}
+                              placeholder="3 mois"
+                              className={inputCls}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Quantité</label>
+                            <input
+                              type="number"
+                              value={line.quantity}
+                              onChange={(e) => updateLine(i, { quantity: parseFloat(e.target.value) || 0 })}
+                              className={inputCls}
+                              step={1}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-widest text-white/40 mb-0.5">Prix unit. (€)</label>
+                            <input
+                              type="number"
+                              value={line.unitPrice}
+                              onChange={(e) => updateLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                              className={inputCls}
+                              step={50}
+                            />
+                          </div>
+                        </div>
                       </div>
                     ))}
-                    <button onClick={addLine} className="text-sm text-lilac hover:underline inline-flex items-center gap-1">
+                    <button onClick={addLine} type="button" className="text-sm text-lilac hover:underline inline-flex items-center gap-1">
                       <Plus size={14} /> Ajouter une ligne
                     </button>
                   </div>

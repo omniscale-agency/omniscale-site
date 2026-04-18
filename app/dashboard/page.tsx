@@ -5,6 +5,7 @@ import {
   Video as VideoIcon, Target, Clock, Activity, ArrowUpRight, BadgePlus,
 } from 'lucide-react';
 import { getSession, Session } from '@/lib/auth';
+import RoleGate from '@/components/RoleGate';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
 import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
 import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
@@ -74,6 +75,19 @@ export default function ClientDashboard() {
 
   if (!session || !client) {
     return <div className="p-12 text-white/60">Chargement…</div>;
+  }
+
+  // Lockdown : leads voient un écran d'invitation à devenir client
+  if (session.role === 'lead') {
+    return (
+      <RoleGate
+        userRole={session.role}
+        allowed={['client', 'admin']}
+        feature="Tableau de bord performance"
+      >
+        <></>
+      </RoleGate>
+    );
   }
 
   const allTodos = [...extras.todos, ...client.todos];

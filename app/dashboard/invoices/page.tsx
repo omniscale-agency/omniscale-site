@@ -1,19 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { FileText, Download, CheckCircle2, Clock, AlertCircle, Receipt, Send } from 'lucide-react';
-import { getSession } from '@/lib/auth';
+import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, getClientBySlug, formatCurrency } from '@/lib/mockData';
+import RoleGate from '@/components/RoleGate';
 import { listInvoicesForClient, subscribeInvoices, computeTotals, InvoiceDoc } from '@/lib/invoicesStore';
 import { downloadPDF } from '@/lib/pdfGenerator';
 import Card from '@/components/dashboard/Card';
 
 export default function ClientInvoicesPage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState(CLIENTS[0]);
   const [invoices, setInvoices] = useState<InvoiceDoc[]>([]);
 
   useEffect(() => {
     const s = getSession();
     if (!s) return;
+    setSession(s);
     const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
     setClient(c || CLIENTS[0]);
   }, []);
@@ -23,6 +26,10 @@ export default function ClientInvoicesPage() {
     refresh();
     return subscribeInvoices(refresh);
   }, [client]);
+
+  if (session?.role === 'lead') {
+    return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Mes factures"><></></RoleGate>;
+  }
 
   const total = invoices.reduce((s, i) => s + computeTotals(i.lines, i.vatRate).total, 0);
   const pending = invoices.filter((i) => i.status === 'sent').reduce((s, i) => s + computeTotals(i.lines, i.vatRate).total, 0);
