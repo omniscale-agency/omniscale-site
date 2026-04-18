@@ -24,7 +24,7 @@ function leadsInRange(leads: Lead[], range: RangeKey): Lead[] {
 
 export default function AdminLeadsPage() {
   const [mounted, setMounted] = useState(false);
-  const [range, setRange] = useState<RangeKey>('30d');
+  const [range, setRange] = useState<Exclude<RangeKey, 'custom'>>('30d');
 
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;

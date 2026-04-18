@@ -14,10 +14,7 @@ interface Props {
   title: string;
   icon?: LucideIcon;
   data: SeriesPoint[];
-  series: Series[];
-  /** Clé optionnelle de la série de comparaison (ex: 'prevViews') — affichée en pointillés */
-  compareKey?: keyof SeriesPoint;
-  compareLabel?: string;
+  series: Series[]; // empilées
   total?: string;
   delta?: number;
   height?: number;
@@ -27,19 +24,26 @@ interface Props {
 
 const numberFmt = (v: number) => formatNumber(v);
 
-export default function AreaChartCard({
+export default function StackedAreaChartCard({
   title,
   icon: Icon,
   data,
   series,
-  compareKey,
-  compareLabel = 'Période précédente',
   total,
   delta,
   height = 240,
   formatY = numberFmt,
   className = '',
 }: Props) {
+  // Compute share % per platform (last point)
+  const last = data[data.length - 1];
+  const totalLast = series.reduce((s, sr) => s + ((last?.[sr.key] as number) || 0), 0);
+  const shares = series.map((sr) => ({
+    ...sr,
+    value: (last?.[sr.key] as number) || 0,
+    pct: totalLast > 0 ? Math.round((((last?.[sr.key] as number) || 0) / totalLast) * 100) : 0,
+  }));
+
   return (
     <div className={`rounded-2xl border border-white/10 bg-white/[0.02] p-6 ${className}`}>
       <div className="flex items-start justify-between mb-5 gap-4">
@@ -66,19 +70,13 @@ export default function AreaChartCard({
             </div>
           )}
         </div>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/60 justify-end">
-          {series.map((s) => (
-            <span key={s.key as string} className="inline-flex items-center gap-1.5">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs justify-end">
+          {shares.map((s) => (
+            <span key={s.key as string} className="inline-flex items-center gap-1.5 text-white/70">
               <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-              {s.label}
+              {s.label} <span className="text-white/40">·</span> <span className="font-mono text-white/90">{s.pct}%</span>
             </span>
           ))}
-          {compareKey && (
-            <span className="inline-flex items-center gap-1.5 text-white/50">
-              <span className="w-3 h-px border-t border-dashed border-white/40" />
-              {compareLabel}
-            </span>
-          )}
         </div>
       </div>
 
@@ -87,9 +85,9 @@ export default function AreaChartCard({
           <AreaChart data={data} margin={{ top: 10, right: 5, left: -15, bottom: 0 }}>
             <defs>
               {series.map((s) => (
-                <linearGradient key={s.key as string} id={`grad-${title}-${s.key as string}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={s.color} stopOpacity={0.45} />
-                  <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+                <linearGradient key={s.key as string} id={`stk-${title}-${s.key as string}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={s.color} stopOpacity={0.85} />
+                  <stop offset="100%" stopColor={s.color} stopOpacity={0.4} />
                 </linearGradient>
               ))}
             </defs>
@@ -103,30 +101,38 @@ export default function AreaChartCard({
               itemStyle={{ color: '#fff' }}
               formatter={(v: number) => formatY(v)}
             />
-            {compareKey && (
-              <Area
-                type="monotone"
-                dataKey={compareKey as string}
-                name={compareLabel}
-                stroke="rgba(255,255,255,0.5)"
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-                fill="transparent"
-              />
-            )}
             {series.map((s) => (
               <Area
                 key={s.key as string}
                 type="monotone"
                 dataKey={s.key as string}
                 name={s.label}
+                stackId="stack"
                 stroke={s.color}
-                strokeWidth={2}
-                fill={`url(#grad-${title}-${s.key as string})`}
+                strokeWidth={1.5}
+                fill={`url(#stk-${title}-${s.key as string})`}
               />
             ))}
           </AreaChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Mini bars % en bas */}
+      <div className="mt-5 pt-4 border-t border-white/10 space-y-2">
+        {shares.map((s) => (
+          <div key={s.key as string}>
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                <span className="text-white/80">{s.label}</span>
+              </span>
+              <span className="font-mono text-white/60">{formatNumber(s.value)} · <span className="text-white">{s.pct}%</span></span>
+            </div>
+            <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${s.pct}%`, background: s.color }} />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

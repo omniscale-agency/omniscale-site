@@ -1,14 +1,16 @@
 'use client';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, CheckSquare, Calendar, Send } from 'lucide-react';
+import { Plus, X, CheckSquare, Calendar, Send, Mail } from 'lucide-react';
 import { addTodo, addEvent } from '@/lib/sharedStore';
+import { CLIENTS } from '@/lib/mockData';
 
 type Mode = 'todo' | 'event' | null;
 
 export default function SendActionsBar({ slug, brand }: { slug: string; brand: string }) {
   const [mode, setMode] = useState<Mode>(null);
   const [sentMessage, setSentMessage] = useState('');
+  const clientEmail = CLIENTS.find((c) => c.slug === slug)?.contact.email || '';
 
   return (
     <>
@@ -33,9 +35,19 @@ export default function SendActionsBar({ slug, brand }: { slug: string; brand: s
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="fixed bottom-6 right-6 z-50 bg-green-500/15 border border-green-500/30 text-green-300 px-5 py-3 rounded-xl shadow-2xl text-sm inline-flex items-center gap-2"
+            className="fixed bottom-6 right-6 z-50 bg-green-500/15 border border-green-500/30 text-green-300 px-5 py-3 rounded-xl shadow-2xl text-sm max-w-sm"
           >
-            <Send size={14} /> {sentMessage}
+            <div className="flex items-start gap-2">
+              <Send size={14} className="mt-0.5 shrink-0" />
+              <div>
+                <div>{sentMessage}</div>
+                {clientEmail && (
+                  <div className="text-xs text-green-300/70 mt-0.5 inline-flex items-center gap-1">
+                    <Mail size={10} /> Email envoyé à {clientEmail}
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

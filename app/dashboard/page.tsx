@@ -6,12 +6,13 @@ import {
 } from 'lucide-react';
 import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
-import { generateSeries, RangeKey, sumSeries, deltaPct } from '@/lib/timeseries';
+import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
 import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import RangePicker from '@/components/dashboard/RangePicker';
 import AreaChartCard from '@/components/dashboard/AreaChartCard';
+import StackedAreaChartCard from '@/components/dashboard/StackedAreaChartCard';
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -41,7 +42,8 @@ const PLATFORM_COLORS: Record<string, string> = {
 export default function ClientDashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
-  const [range, setRange] = useState<RangeKey>('30d');
+  const [range, setRange] = useState<Exclude<RangeKey, 'custom'>>('30d');
+  const [compare, setCompare] = useState(false);
   const [extras, setExtras] = useState({ todos: [] as ClientData['todos'], events: [] as ClientData['upcomingEvents'] });
 
   useEffect(() => {
@@ -67,8 +69,8 @@ export default function ClientDashboard() {
 
   const series = useMemo(() => {
     if (!client) return [];
-    return generateSeries(client.slug, range);
-  }, [client, range]);
+    return compare ? generateWithCompare(client.slug, range) : generateSeries(client.slug, range);
+  }, [client, range, compare]);
 
   if (!session || !client) {
     return <div className="p-12 text-white/60">Chargement…</div>;
@@ -100,7 +102,7 @@ export default function ClientDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <RangePicker value={range} onChange={setRange} />
+          <RangePicker value={range} onChange={setRange} compare={compare} onCompareToggle={setCompare} />
           <span className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
             ● Compte actif
           </span>
@@ -146,14 +148,19 @@ export default function ClientDashboard() {
           icon={Eye}
           data={series}
           series={[{ key: 'views', label: 'Vues', color: '#B794E8' }]}
+          compareKey={compare ? 'prevViews' : undefined}
           total={formatNumber(totalViews)}
-          delta={viewsDelta}
+          delta={compare ? compareDelta(series, 'views', 'prevViews') : viewsDelta}
         />
-        <AreaChartCard
-          title="Abonnés cumulés"
+        <StackedAreaChartCard
+          title="Abonnés par plateforme"
           icon={Users}
           data={series}
-          series={[{ key: 'followers', label: 'Followers', color: '#34d399' }]}
+          series={[
+            { key: 'followersTiktok', label: 'TikTok', color: '#22d3ee' },
+            { key: 'followersInstagram', label: 'Instagram', color: '#ec4899' },
+            { key: 'followersYoutube', label: 'YouTube', color: '#ef4444' },
+          ]}
           total={formatNumber(series[series.length - 1]?.followers || 0)}
           delta={deltaPct(series, 'followers')}
         />
@@ -165,8 +172,10 @@ export default function ClientDashboard() {
             { key: 'adRevenue', label: 'CA généré', color: '#fbbf24' },
             { key: 'adSpend', label: 'Dépensé', color: '#f87171' },
           ]}
+          compareKey={compare ? 'prevAdRevenue' : undefined}
+          compareLabel="CA période précédente"
           total={formatCurrency(adRevenue)}
-          delta={deltaPct(series, 'adRevenue')}
+          delta={compare ? compareDelta(series, 'adRevenue', 'prevAdRevenue') : deltaPct(series, 'adRevenue')}
           formatY={(v) => formatCurrency(v).replace('€', '€')}
         />
         <AreaChartCard
@@ -174,6 +183,7 @@ export default function ClientDashboard() {
           icon={Heart}
           data={series}
           series={[{ key: 'engagement', label: 'Engagement', color: '#ec4899' }]}
+          compareKey={compare ? 'prevEngagement' : undefined}
           total={`${client.stats.engagementRate}%`}
           delta={3}
           formatY={(v) => `${v}%`}

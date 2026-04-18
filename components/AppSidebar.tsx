@@ -15,6 +15,7 @@ import {
   X,
   Filter,
   Wallet,
+  Receipt,
 } from 'lucide-react';
 import Logo from './Logo';
 import { getSession, logout, Session } from '@/lib/auth';
@@ -31,6 +32,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: '/dashboard/todos', label: 'Tâches', Icon: CheckSquare },
   { href: '/dashboard/videos', label: 'Vidéos', Icon: Video },
   { href: '/dashboard/calendar', label: 'Agenda', Icon: Calendar },
+  { href: '/dashboard/invoices', label: 'Factures', Icon: Receipt },
   { href: '/dashboard/settings', label: 'Paramètres', Icon: Settings },
 ];
 
