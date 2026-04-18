@@ -6,14 +6,23 @@ import {
   Mail, Phone, Sparkles,
 } from 'lucide-react';
 import { getClientBySlug, ClientData, formatNumber, formatCurrency } from '@/lib/mockData';
+import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
+import SendActionsBar from '@/components/admin/SendActionsBar';
 
 export default function ClientDetailView({ slug }: { slug: string }) {
   const [client, setClient] = useState<ClientData | null>(null);
+  const [extras, setExtras] = useState({ todos: [] as ClientData['todos'], events: [] as ClientData['upcomingEvents'] });
 
   useEffect(() => {
     setClient(getClientBySlug(slug) || null);
+  }, [slug]);
+
+  useEffect(() => {
+    const refresh = () => setExtras({ todos: getExtraTodos(slug), events: getExtraEvents(slug) });
+    refresh();
+    return subscribe(refresh);
   }, [slug]);
 
   if (!client) {
@@ -53,6 +62,7 @@ export default function ClientDetailView({ slug }: { slug: string }) {
             </div>
           </div>
         </div>
+        <SendActionsBar slug={client.slug} brand={client.brand} />
       </div>
 
       {/* Contact */}
@@ -119,12 +129,15 @@ export default function ClientDetailView({ slug }: { slug: string }) {
         </Card>
 
         {/* Tâches */}
-        <Card title="Tâches en cours" icon={CheckSquare} subtitle={`${client.todos.filter(t => !t.done).length} ouvertes`}>
-          <ul className="space-y-2.5">
-            {client.todos.map((t) => (
+        <Card title="Tâches" icon={CheckSquare} subtitle={`${[...extras.todos, ...client.todos].filter(t => !t.done).length} ouvertes`}>
+          <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+            {[...extras.todos, ...client.todos].map((t) => (
               <li key={t.id} className="flex items-start gap-3 text-sm">
                 {t.done ? <CheckSquare className="text-lilac mt-0.5 shrink-0" size={16} /> : <Square className="text-white/40 mt-0.5 shrink-0" size={16} />}
                 <div className={`flex-1 ${t.done ? 'line-through text-white/40' : ''}`}>
+                  {t.id.startsWith('admin-') && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold mr-1.5">Envoyée</span>
+                  )}
                   {t.title}
                   {t.assignee && <span className="text-xs text-white/40 ml-2">· {t.assignee}</span>}
                 </div>
@@ -151,8 +164,8 @@ export default function ClientDetailView({ slug }: { slug: string }) {
         </Card>
 
         <Card title="Prochains RDV" icon={Calendar}>
-          <ul className="space-y-3">
-            {client.upcomingEvents.map((e) => {
+          <ul className="space-y-3 max-h-72 overflow-y-auto">
+            {[...extras.events, ...client.upcomingEvents].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).map((e) => {
               const d = new Date(e.startsAt);
               return (
                 <li key={e.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
@@ -161,7 +174,12 @@ export default function ClientDetailView({ slug }: { slug: string }) {
                     <div className="text-[10px] uppercase text-white/60">{d.toLocaleDateString('fr-FR', { month: 'short' })}</div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{e.title}</div>
+                    <div className="text-sm font-medium flex items-center gap-2">
+                      {e.id.startsWith('admin-') && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Envoyé</span>
+                      )}
+                      <span>{e.title}</span>
+                    </div>
                     <div className="text-xs text-white/50 mt-0.5">
                       {d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {e.duration} min
                     </div>

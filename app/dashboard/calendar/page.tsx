@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Video, Users, Sparkles, ExternalLink } from 'lucide-react';
 import { getSession } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug } from '@/lib/mockData';
+import { getExtraEvents, subscribe } from '@/lib/sharedStore';
 
 const TYPE_ICONS = {
   call: Video,
@@ -20,6 +21,7 @@ const TYPE_LABELS = {
 
 export default function CalendarPage() {
   const [client, setClient] = useState<ClientData | null>(null);
+  const [extras, setExtras] = useState<ClientData['upcomingEvents']>([]);
 
   useEffect(() => {
     const s = getSession();
@@ -27,7 +29,18 @@ export default function CalendarPage() {
     setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
   }, []);
 
+  useEffect(() => {
+    if (!client) return;
+    const refresh = () => setExtras(getExtraEvents(client.slug));
+    refresh();
+    return subscribe(refresh);
+  }, [client]);
+
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
+
+  const allEvents = [...extras, ...client.upcomingEvents].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  );
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-5xl mx-auto">
@@ -46,7 +59,7 @@ export default function CalendarPage() {
       </div>
 
       <div className="space-y-3">
-        {client.upcomingEvents.map((e) => {
+        {allEvents.map((e) => {
           const Icon = TYPE_ICONS[e.type];
           const d = new Date(e.startsAt);
           return (

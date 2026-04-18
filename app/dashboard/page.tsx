@@ -1,13 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Eye, Users, TrendingUp, Heart, Sparkles, Calendar, CheckSquare,
-  Video as VideoIcon, Target, Clock, Activity, ArrowUpRight,
+  Video as VideoIcon, Target, Clock, Activity, ArrowUpRight, BadgePlus,
 } from 'lucide-react';
 import { getSession, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
+import { generateSeries, RangeKey, sumSeries, deltaPct } from '@/lib/timeseries';
+import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
+import RangePicker from '@/components/dashboard/RangePicker';
+import AreaChartCard from '@/components/dashboard/AreaChartCard';
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -37,6 +41,8 @@ const PLATFORM_COLORS: Record<string, string> = {
 export default function ClientDashboard() {
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
+  const [range, setRange] = useState<RangeKey>('30d');
+  const [extras, setExtras] = useState({ todos: [] as ClientData['todos'], events: [] as ClientData['upcomingEvents'] });
 
   useEffect(() => {
     const s = getSession();
@@ -46,15 +52,39 @@ export default function ClientDashboard() {
     setClient(c || CLIENTS[0]);
   }, []);
 
+  // Sync les extras (admin → client) en temps réel
+  useEffect(() => {
+    if (!client) return;
+    const refresh = () => {
+      setExtras({
+        todos: getExtraTodos(client.slug),
+        events: getExtraEvents(client.slug),
+      });
+    };
+    refresh();
+    return subscribe(refresh);
+  }, [client]);
+
+  const series = useMemo(() => {
+    if (!client) return [];
+    return generateSeries(client.slug, range);
+  }, [client, range]);
+
   if (!session || !client) {
     return <div className="p-12 text-white/60">Chargement…</div>;
   }
 
-  const { stats } = client;
-  const totalFollowers = stats.instagramFollowers + stats.tiktokFollowers;
-  const totalFollowersGained = stats.instagramFollowersGained + stats.tiktokFollowersGained;
-  const roas = stats.adRevenue / stats.adSpend;
-  const todosOpen = client.todos.filter((t) => !t.done);
+  const allTodos = [...extras.todos, ...client.todos];
+  const allEvents = [...extras.events, ...client.upcomingEvents].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  );
+  const todosOpen = allTodos.filter((t) => !t.done);
+
+  const totalViews = sumSeries(series, 'views');
+  const viewsDelta = deltaPct(series, 'views');
+  const adRevenue = sumSeries(series, 'adRevenue');
+  const adSpend = sumSeries(series, 'adSpend');
+  const roas = adSpend > 0 ? adRevenue / adSpend : 0;
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
@@ -66,31 +96,29 @@ export default function ClientDashboard() {
             Salut <span className="text-gradient">{session.name.split(' ')[0]}</span> 👋
           </h1>
           <p className="text-white/60 mt-2">
-            Voici un récap de tes performances sur les <strong className="text-white">30 derniers jours</strong>.
+            Récap de tes performances — sélectionne la période ci-dessous.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400">
-            ● {client.status === 'actif' ? 'Compte actif' : client.status}
-          </span>
-          <span className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/70">
-            Closer : {client.closer}
+        <div className="flex flex-wrap items-center gap-3">
+          <RangePicker value={range} onChange={setRange} />
+          <span className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+            ● Compte actif
           </span>
         </div>
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
-          label="Vues 30j"
-          value={formatNumber(stats.instagramViews + stats.tiktokViews)}
-          delta={42}
+          label={`Vues sur la période`}
+          value={formatNumber(totalViews)}
+          delta={viewsDelta}
           icon={Eye}
           accent="lilac"
         />
         <StatCard
           label="Abonnés gagnés"
-          value={`+${formatNumber(totalFollowersGained)}`}
+          value={`+${formatNumber(client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained)}`}
           delta={18}
           icon={Users}
           accent="green"
@@ -98,16 +126,57 @@ export default function ClientDashboard() {
         <StatCard
           label="ROAS Meta"
           value={`x${roas.toFixed(1)}`}
-          delta={12}
+          delta={deltaPct(series, 'adRevenue')}
           icon={TrendingUp}
           accent="amber"
         />
         <StatCard
-          label="Engagement"
-          value={`${stats.engagementRate}%`}
+          label="Engagement moyen"
+          value={`${client.stats.engagementRate}%`}
           delta={3}
           icon={Heart}
           accent="pink"
+        />
+      </div>
+
+      {/* Graphiques */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <AreaChartCard
+          title="Vues totales"
+          icon={Eye}
+          data={series}
+          series={[{ key: 'views', label: 'Vues', color: '#B794E8' }]}
+          total={formatNumber(totalViews)}
+          delta={viewsDelta}
+        />
+        <AreaChartCard
+          title="Abonnés cumulés"
+          icon={Users}
+          data={series}
+          series={[{ key: 'followers', label: 'Followers', color: '#34d399' }]}
+          total={formatNumber(series[series.length - 1]?.followers || 0)}
+          delta={deltaPct(series, 'followers')}
+        />
+        <AreaChartCard
+          title="Performance pub Meta"
+          icon={Sparkles}
+          data={series}
+          series={[
+            { key: 'adRevenue', label: 'CA généré', color: '#fbbf24' },
+            { key: 'adSpend', label: 'Dépensé', color: '#f87171' },
+          ]}
+          total={formatCurrency(adRevenue)}
+          delta={deltaPct(series, 'adRevenue')}
+          formatY={(v) => formatCurrency(v).replace('€', '€')}
+        />
+        <AreaChartCard
+          title="Taux d'engagement"
+          icon={Heart}
+          data={series}
+          series={[{ key: 'engagement', label: 'Engagement', color: '#ec4899' }]}
+          total={`${client.stats.engagementRate}%`}
+          delta={3}
+          formatY={(v) => `${v}%`}
         />
       </div>
 
@@ -118,8 +187,8 @@ export default function ClientDashboard() {
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">Instagram</div>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-orange-500 flex items-center justify-center text-xs font-bold">IG</div>
           </div>
-          <div className="font-display text-2xl font-bold mb-1">{formatNumber(stats.instagramViews)} vues</div>
-          <div className="text-sm text-white/60">{formatNumber(stats.instagramFollowers)} abonnés <span className="text-green-400">+{formatNumber(stats.instagramFollowersGained)}</span></div>
+          <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.instagramViews)} vues</div>
+          <div className="text-sm text-white/60">{formatNumber(client.stats.instagramFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.instagramFollowersGained)}</span></div>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-400/10 to-pink-500/5 p-5">
@@ -127,8 +196,8 @@ export default function ClientDashboard() {
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">TikTok</div>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-pink-500 flex items-center justify-center text-xs font-bold">TT</div>
           </div>
-          <div className="font-display text-2xl font-bold mb-1">{formatNumber(stats.tiktokViews)} vues</div>
-          <div className="text-sm text-white/60">{formatNumber(stats.tiktokFollowers)} abonnés <span className="text-green-400">+{formatNumber(stats.tiktokFollowersGained)}</span></div>
+          <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.tiktokViews)} vues</div>
+          <div className="text-sm text-white/60">{formatNumber(client.stats.tiktokFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.tiktokFollowersGained)}</span></div>
         </div>
 
         <div className="rounded-2xl border border-lilac/20 bg-lilac/5 p-5">
@@ -136,8 +205,8 @@ export default function ClientDashboard() {
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">Pub Meta</div>
             <Sparkles className="text-lilac" size={18} />
           </div>
-          <div className="font-display text-2xl font-bold mb-1">{formatCurrency(stats.adRevenue)}</div>
-          <div className="text-sm text-white/60">généré sur {formatCurrency(stats.adSpend)} dépensés</div>
+          <div className="font-display text-2xl font-bold mb-1">{formatCurrency(adRevenue)}</div>
+          <div className="text-sm text-white/60">généré sur {formatCurrency(adSpend)} dépensés</div>
         </div>
       </div>
 
@@ -185,7 +254,14 @@ export default function ClientDashboard() {
               <li key={t.id} className="flex items-start gap-3">
                 <div className="w-4 h-4 rounded border border-white/30 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm">{t.title}</div>
+                  <div className="text-sm flex items-start gap-2">
+                    {t.id.startsWith('admin-') && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac font-semibold uppercase shrink-0 mt-0.5">
+                        <BadgePlus size={10} className="inline mr-0.5" /> Nouveau
+                      </span>
+                    )}
+                    <span>{t.title}</span>
+                  </div>
                   {t.dueDate && (
                     <div className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
                       <Clock size={10} /> {new Date(t.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
@@ -227,7 +303,7 @@ export default function ClientDashboard() {
           }
         >
           <ul className="space-y-3">
-            {client.upcomingEvents.slice(0, 3).map((e) => {
+            {allEvents.slice(0, 4).map((e) => {
               const d = eventDate(e.startsAt);
               return (
                 <li key={e.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
@@ -236,7 +312,12 @@ export default function ClientDashboard() {
                     <div className="text-[10px] uppercase text-white/60">{d.mon}</div>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{e.title}</div>
+                    <div className="text-sm font-medium truncate flex items-center gap-2">
+                      {e.id.startsWith('admin-') && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Nouveau</span>
+                      )}
+                      <span>{e.title}</span>
+                    </div>
                     <div className="text-xs text-white/50 mt-0.5">{d.time} · {e.duration} min</div>
                     <div className="text-xs text-white/40">avec {e.with}</div>
                   </div>

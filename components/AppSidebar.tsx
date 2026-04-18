@@ -13,6 +13,8 @@ import {
   TrendingUp,
   Menu,
   X,
+  Filter,
+  Wallet,
 } from 'lucide-react';
 import Logo from './Logo';
 import { getSession, logout, Session } from '@/lib/auth';
@@ -35,6 +37,8 @@ const CLIENT_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { href: '/admin', label: 'Vue d\'ensemble', Icon: LayoutDashboard },
   { href: '/admin/clients', label: 'Clients', Icon: Users },
+  { href: '/admin/leads', label: 'Leads & acquisition', Icon: Filter },
+  { href: '/admin/finance', label: 'Trésorerie', Icon: Wallet },
   { href: '/admin/performance', label: 'Performance', Icon: TrendingUp },
 ];
 
