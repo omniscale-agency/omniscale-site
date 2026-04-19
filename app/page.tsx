@@ -1,6 +1,7 @@
 import Cursor from '@/components/Cursor';
 import Nav from '@/components/Nav';
 import Hero from '@/components/Hero';
+import PresentationVideo from '@/components/PresentationVideo';
 import Marquee from '@/components/Marquee';
 import Services from '@/components/Services';
 import Showreel from '@/components/Showreel';
@@ -18,6 +19,7 @@ export default function Home() {
       <Cursor />
       <Nav />
       <Hero />
+      <PresentationVideo />
       <Marquee />
       <Services />
       <Showreel />

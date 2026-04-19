@@ -6,12 +6,12 @@ import Logo from './Logo';
 import { BOOKING_URL } from '@/lib/config';
 
 const links = [
+  { href: '#presentation', label: 'Présentation' },
   { href: '#services', label: 'Services' },
   { href: '#showreel', label: 'Showreel' },
   { href: '#cas', label: 'Cas clients' },
   { href: '#process', label: 'Process' },
   { href: '#faq', label: 'FAQ' },
-  { href: '#contact', label: 'Contact' },
 ];
 
 export default function Nav() {
