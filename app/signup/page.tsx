@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Lock, Building2, ArrowRight, Eye, EyeOff, Sparkles, MapPin, Phone, Tag, Globe, TrendingUp, ArrowLeft } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { register, getSessionAsync } from '@/lib/auth';
+import { sendEmail } from '@/lib/sendEmail';
 
 const SECTORS = [
   'Boutique de mode / Prêt-à-porter',
@@ -79,6 +80,15 @@ export default function SignupPage() {
       website: website.trim() || undefined,
     });
     if (result.ok === false) { setError(result.error); setLoading(false); return; }
+
+    // Fire-and-forget : welcome email au lead + notif admin
+    const welcomeData = { name: name.trim() };
+    const leadData = { name: name.trim(), email: email.trim(), brand: brand.trim(), sector, city: city.trim(), monthlyRevenue };
+    Promise.all([
+      sendEmail('welcome_lead', email.trim(), welcomeData).catch(() => {}),
+      sendEmail('new_lead_admin', 'admin@omniscale.fr', leadData).catch(() => {}),
+    ]);
+
     router.push('/dashboard');
   };
 

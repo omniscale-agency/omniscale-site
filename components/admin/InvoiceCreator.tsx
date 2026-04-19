@@ -5,6 +5,8 @@ import { X, Plus, Trash2, FileText, Download, Send, Eye } from 'lucide-react';
 import { CLIENTS, formatCurrency } from '@/lib/mockData';
 import { createInvoice, computeTotals, updateInvoice, InvoiceLine } from '@/lib/invoicesStore';
 import { generateInvoicePDF, downloadPDF } from '@/lib/pdfGenerator';
+import { sendEmail } from '@/lib/sendEmail';
+import { formatCurrency as fmtEur } from '@/lib/mockData';
 
 type DocType = 'invoice' | 'payment_request';
 
@@ -74,10 +76,22 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
 
   const handleSend = async () => {
     setSending(true);
+    let invoiceId = createdId;
     if (createdId) {
       await updateInvoice(createdId, { status: 'sent', sentAt: new Date().toISOString() });
     } else {
-      await createInvoice({ ...buildDoc(), status: 'sent', sentAt: new Date().toISOString() });
+      const created = await createInvoice({ ...buildDoc(), status: 'sent', sentAt: new Date().toISOString() });
+      invoiceId = created.id;
+    }
+    // Email réel au client
+    if (client.contact.email && invoiceId) {
+      sendEmail('invoice', client.contact.email, {
+        clientName: client.contact.name,
+        invoiceId,
+        amount: fmtEur(totals.total),
+        dueAt: new Date(dueAt).toISOString(),
+        type,
+      }).catch(() => {});
     }
     setSending(false);
     onSent?.();

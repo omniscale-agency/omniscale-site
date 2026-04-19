@@ -1,16 +1,45 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, CheckSquare, Calendar, Send, Mail } from 'lucide-react';
 import { addTodo, addEvent } from '@/lib/sharedStore';
 import { CLIENTS } from '@/lib/mockData';
+import { sendEmail } from '@/lib/sendEmail';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 type Mode = 'todo' | 'event' | null;
+
+async function resolveClientEmail(slug: string): Promise<{ email: string; name: string }> {
+  // 1. Mock match first
+  const mock = CLIENTS.find((c) => c.slug === slug);
+  if (mock) return { email: mock.contact.email, name: mock.contact.name };
+  // 2. Real client : slug peut être URL-encoded email OU "user-<uuid>"
+  const sb = supabaseBrowser();
+  if (slug.startsWith('user-')) {
+    const userId = slug.slice(5);
+    const { data } = await sb.from('profiles').select('email,name').eq('id', userId).single();
+    if (data) return { email: data.email, name: data.name };
+  }
+  // 3. Try email-decoded slug
+  try {
+    const email = decodeURIComponent(slug);
+    if (email.includes('@')) {
+      const { data } = await sb.from('profiles').select('email,name').eq('email', email).single();
+      if (data) return { email: data.email, name: data.name };
+      return { email, name: email.split('@')[0] };
+    }
+  } catch {}
+  return { email: '', name: '' };
+}
 
 export default function SendActionsBar({ slug, brand }: { slug: string; brand: string }) {
   const [mode, setMode] = useState<Mode>(null);
   const [sentMessage, setSentMessage] = useState('');
-  const clientEmail = CLIENTS.find((c) => c.slug === slug)?.contact.email || '';
+  const [client, setClient] = useState<{ email: string; name: string }>({ email: '', name: '' });
+
+  useEffect(() => { resolveClientEmail(slug).then(setClient); }, [slug]);
+
+  const clientEmail = client.email;
 
   return (
     <>
@@ -83,11 +112,15 @@ export default function SendActionsBar({ slug, brand }: { slug: string; brand: s
               {mode === 'todo' ? (
                 <TodoForm
                   slug={slug}
+                  clientEmail={clientEmail}
+                  clientName={client.name || brand}
                   onSent={(title) => { setSentMessage(`Tâche "${title}" envoyée à ${brand}`); setMode(null); setTimeout(() => setSentMessage(''), 3500); }}
                 />
               ) : (
                 <EventForm
                   slug={slug}
+                  clientEmail={clientEmail}
+                  clientName={client.name || brand}
                   onSent={(title) => { setSentMessage(`RDV "${title}" planifié avec ${brand}`); setMode(null); setTimeout(() => setSentMessage(''), 3500); }}
                 />
               )}
@@ -99,7 +132,7 @@ export default function SendActionsBar({ slug, brand }: { slug: string; brand: s
   );
 }
 
-function TodoForm({ slug, onSent }: { slug: string; onSent: (title: string) => void }) {
+function TodoForm({ slug, clientEmail, clientName, onSent }: { slug: string; clientEmail: string; clientName: string; onSent: (title: string) => void }) {
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [assignee, setAssignee] = useState('Le client');
@@ -109,6 +142,9 @@ function TodoForm({ slug, onSent }: { slug: string; onSent: (title: string) => v
     e.preventDefault();
     if (!title.trim()) return;
     await addTodo(slug, { title: title.trim(), done: false, dueDate: dueDate || undefined, assignee, priority });
+    if (clientEmail) {
+      sendEmail('task', clientEmail, { clientName, taskTitle: title.trim(), dueDate, assignee, priority }).catch(() => {});
+    }
     onSent(title.trim());
   };
 
@@ -147,7 +183,7 @@ function TodoForm({ slug, onSent }: { slug: string; onSent: (title: string) => v
   );
 }
 
-function EventForm({ slug, onSent }: { slug: string; onSent: (title: string) => void }) {
+function EventForm({ slug, clientEmail, clientName, onSent }: { slug: string; clientEmail: string; clientName: string; onSent: (title: string) => void }) {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('14:00');
@@ -160,6 +196,9 @@ function EventForm({ slug, onSent }: { slug: string; onSent: (title: string) => 
     if (!title.trim() || !date) return;
     const startsAt = new Date(`${date}T${time}:00`).toISOString();
     await addEvent(slug, { title: title.trim(), startsAt, duration, type, with: withWho });
+    if (clientEmail) {
+      sendEmail('event', clientEmail, { clientName, eventTitle: title.trim(), startsAt, duration, type, with: withWho }).catch(() => {});
+    }
     onSent(title.trim());
   };
 
