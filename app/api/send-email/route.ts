@@ -6,7 +6,8 @@ import {
 } from '@/lib/emailTemplates';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM = 'Omniscale <noreply@omniscale.fr>';
+const FROM_VERIFIED = 'Omniscale <noreply@omniscale.fr>';
+const FROM_FALLBACK = 'Omniscale <onboarding@resend.dev>';
 const REPLY_TO = 'contact@omniscale.fr';
 const ADMIN_EMAIL = 'admin@omniscale.fr';
 
@@ -52,19 +53,32 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unknown email kind' }, { status: 400 });
     }
 
-    const { data: result, error } = await resend.emails.send({
-      from: FROM,
+    // Tentative 1 : depuis le domaine custom (si vérifié)
+    let result = await resend.emails.send({
+      from: FROM_VERIFIED,
       to,
       subject,
       html,
       replyTo: REPLY_TO,
     });
 
-    if (error) {
-      console.error('Resend error', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Si erreur 403 (domaine non vérifié) → fallback automatique sur onboarding@resend.dev
+    if (result.error && /domain.*not.*verif|not allowed|verify.*domain/i.test(result.error.message)) {
+      console.warn('[email] omniscale.fr not verified yet, falling back to onboarding@resend.dev');
+      result = await resend.emails.send({
+        from: FROM_FALLBACK,
+        to,
+        subject,
+        html,
+        replyTo: REPLY_TO,
+      });
     }
-    return NextResponse.json({ ok: true, id: result?.id });
+
+    if (result.error) {
+      console.error('[email] Resend error:', result.error);
+      return NextResponse.json({ error: result.error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, id: result.data?.id });
   } catch (e: any) {
     console.error('send-email error', e);
     return NextResponse.json({ error: e.message || 'Unknown error' }, { status: 500 });
