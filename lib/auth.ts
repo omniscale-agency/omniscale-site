@@ -8,8 +8,14 @@ export interface Session {
   role: Role;
   name: string;
   brand?: string;
+  sector?: string;
+  city?: string;
+  phone?: string;
+  monthlyRevenue?: string;
+  website?: string;
   clientSlug?: string;
   userId: string;
+  createdAt: string;
 }
 
 export interface User {
@@ -17,10 +23,17 @@ export interface User {
   email: string;
   name: string;
   brand?: string;
+  sector?: string;
+  city?: string;
+  phone?: string;
+  monthlyRevenue?: string;
+  website?: string;
   role: Role;
   clientSlug?: string;
   createdAt: string;
 }
+
+export interface Profile extends User {}
 
 // ============================================================
 // Sessions cache (évite refetch à chaque appel synchrone)
@@ -29,20 +42,30 @@ let _cachedSession: Session | null = null;
 let _sessionLoadedAt = 0;
 const CACHE_MS = 30_000;
 
+function profileToSession(userId: string, p: any): Session {
+  return {
+    userId,
+    email: p.email,
+    name: p.name,
+    brand: p.brand || undefined,
+    sector: p.sector || undefined,
+    city: p.city || undefined,
+    phone: p.phone || undefined,
+    monthlyRevenue: p.monthly_revenue || undefined,
+    website: p.website || undefined,
+    role: p.role as Role,
+    clientSlug: p.client_slug || undefined,
+    createdAt: p.created_at,
+  };
+}
+
 async function loadSession(): Promise<Session | null> {
   const sb = supabaseBrowser();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
   const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
   if (!profile) return null;
-  return {
-    userId: user.id,
-    email: profile.email,
-    name: profile.name,
-    brand: profile.brand || undefined,
-    role: profile.role as Role,
-    clientSlug: profile.client_slug || undefined,
-  };
+  return profileToSession(user.id, profile);
 }
 
 /** Récupère la session courante (async — préféré). */
@@ -85,30 +108,40 @@ export async function login(
   if (asAdmin && profile.role !== 'admin') { await sb.auth.signOut(); return null; }
   if (!asAdmin && profile.role === 'admin') { await sb.auth.signOut(); return null; }
 
-  const session: Session = {
-    userId: data.user.id,
-    email: profile.email,
-    name: profile.name,
-    brand: profile.brand || undefined,
-    role: profile.role as Role,
-    clientSlug: profile.client_slug || undefined,
-  };
+  const session = profileToSession(data.user.id, profile);
   _cachedSession = session;
   _sessionLoadedAt = Date.now();
   return session;
 }
 
-export async function register(input: {
+export interface RegisterInput {
   email: string;
   password: string;
   name: string;
   brand?: string;
-}): Promise<{ ok: true; session: Session } | { ok: false; error: string }> {
+  sector?: string;
+  city?: string;
+  phone?: string;
+  monthlyRevenue?: string;
+  website?: string;
+}
+
+export async function register(input: RegisterInput): Promise<{ ok: true; session: Session } | { ok: false; error: string }> {
   const sb = supabaseBrowser();
   const { data, error } = await sb.auth.signUp({
     email: input.email,
     password: input.password,
-    options: { data: { name: input.name, brand: input.brand } },
+    options: {
+      data: {
+        name: input.name,
+        brand: input.brand,
+        sector: input.sector,
+        city: input.city,
+        phone: input.phone,
+        monthly_revenue: input.monthlyRevenue,
+        website: input.website,
+      },
+    },
   });
   if (error) return { ok: false, error: error.message };
   if (!data.user) return { ok: false, error: 'Erreur de création du compte.' };
@@ -125,14 +158,7 @@ export async function register(input: {
 
   if (typeof window !== 'undefined') localStorage.setItem('omniscale_show_tour', '1');
 
-  const session: Session = {
-    userId: data.user.id,
-    email: profile.email,
-    name: profile.name,
-    brand: profile.brand || undefined,
-    role: profile.role as Role,
-    clientSlug: profile.client_slug || undefined,
-  };
+  const session = profileToSession(data.user.id, profile);
   _cachedSession = session;
   _sessionLoadedAt = Date.now();
   return { ok: true, session };
@@ -157,6 +183,11 @@ export async function listUsers(): Promise<User[]> {
     email: p.email,
     name: p.name,
     brand: p.brand || undefined,
+    sector: p.sector || undefined,
+    city: p.city || undefined,
+    phone: p.phone || undefined,
+    monthlyRevenue: p.monthly_revenue || undefined,
+    website: p.website || undefined,
     role: p.role as Role,
     clientSlug: p.client_slug || undefined,
     createdAt: p.created_at,
@@ -165,10 +196,15 @@ export async function listUsers(): Promise<User[]> {
 
 export async function updateUser(
   email: string,
-  patch: Partial<{ role: Role; clientSlug?: string; name: string; brand: string }>,
+  patch: Partial<{ role: Role; clientSlug?: string; name: string; brand: string; sector: string; city: string; phone: string; monthlyRevenue: string; website: string }>,
 ) {
   const sb = supabaseBrowser();
   const dbPatch: Record<string, unknown> = {};
+  if ('monthlyRevenue' in patch) dbPatch.monthly_revenue = patch.monthlyRevenue || null;
+  if ('sector' in patch) dbPatch.sector = patch.sector || null;
+  if ('city' in patch) dbPatch.city = patch.city || null;
+  if ('phone' in patch) dbPatch.phone = patch.phone || null;
+  if ('website' in patch) dbPatch.website = patch.website || null;
   if (patch.role) dbPatch.role = patch.role;
   if ('clientSlug' in patch) dbPatch.client_slug = patch.clientSlug || null;
   if (patch.name) dbPatch.name = patch.name;

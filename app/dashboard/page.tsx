@@ -53,29 +53,34 @@ export default function ClientDashboard() {
     getSessionAsync().then((s) => {
       if (!s) return;
       setSession(s);
-      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
-      setClient(c || CLIENTS[0]);
+      // Si l'admin a mappé l'utilisateur à un dossier mockData → on charge les données démo
+      // Sinon → on reste sans `client` et on affiche l'état "onboarding"
+      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : null;
+      setClient(c || null);
       setLoaded(true);
     });
   }, []);
 
+  // slug pour l'agrégation des extras : soit clientSlug DB, soit user-id (compte sans mockData mappé)
+  const extrasSlug = session?.clientSlug || (session?.userId ? `user-${session.userId}` : '');
+
   useEffect(() => {
-    if (!client) return;
+    if (!extrasSlug) return;
     const refresh = async () => {
-      const [t, e] = await Promise.all([fetchTodos(client.slug), fetchEvents(client.slug)]);
+      const [t, e] = await Promise.all([fetchTodos(extrasSlug), fetchEvents(extrasSlug)]);
       setExtraTodos(t);
       setExtraEvents(e);
     };
     refresh();
-    return subscribeClientChanges(client.slug, refresh);
-  }, [client]);
+    return subscribeClientChanges(extrasSlug, refresh);
+  }, [extrasSlug]);
 
   const series = useMemo(() => {
     if (!client) return [];
     return compare ? generateWithCompare(client.slug, range) : generateSeries(client.slug, range);
   }, [client, range, compare]);
 
-  if (!loaded || !session || !client) {
+  if (!loaded || !session) {
     return <div className="p-12 text-white/60">Chargement…</div>;
   }
 
@@ -86,6 +91,75 @@ export default function ClientDashboard() {
       </RoleGate>
     );
   }
+
+  // Client sans dossier mockData mappé → affichage "onboarding"
+  if (session.role === 'client' && !client) {
+    return (
+      <main className="p-6 md:p-10 lg:p-12 max-w-5xl mx-auto">
+        <div className="mb-10">
+          <div className="text-xs uppercase tracking-widest text-lilac mb-2">Espace client · {session.brand || 'Mon entreprise'}</div>
+          <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
+            Bienvenue <span className="text-gradient">{session.name.split(' ')[0]}</span> 👋
+          </h1>
+          <p className="text-white/60 mt-3 max-w-2xl">
+            Ton compte est actif. L'équipe Omniscale prépare ton espace personnalisé. En attendant, voici ce que tu peux faire.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <a href="/dashboard/connections" className="rounded-2xl border border-white/10 bg-white/[0.02] hover:border-lilac/40 transition-colors p-6 group">
+            <div className="w-12 h-12 rounded-xl bg-lilac/15 border border-lilac/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Sparkles className="text-lilac" size={20} />
+            </div>
+            <div className="font-display font-bold text-lg mb-1">Connecte tes réseaux</div>
+            <p className="text-sm text-white/60">Insta, TikTok, YouTube — pour qu'on importe tes vraies stats et vidéos.</p>
+          </a>
+          <a href="/dashboard/settings" className="rounded-2xl border border-white/10 bg-white/[0.02] hover:border-lilac/40 transition-colors p-6 group">
+            <div className="w-12 h-12 rounded-xl bg-lilac/15 border border-lilac/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Target className="text-lilac" size={20} />
+            </div>
+            <div className="font-display font-bold text-lg mb-1">Complète tes infos</div>
+            <p className="text-sm text-white/60">Secteur, ville, CA actuel — plus c'est précis, mieux on accompagne.</p>
+          </a>
+        </div>
+
+        {/* Tâches/RDV envoyés par admin (les extras) */}
+        {(extraTodos.length > 0 || extraEvents.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {extraTodos.length > 0 && (
+              <Card title="Tâches envoyées par Omniscale" icon={CheckSquare}>
+                <ul className="space-y-3">
+                  {extraTodos.filter(t => !t.done).map((t) => (
+                    <li key={t.id} className="text-sm">• {t.title}</li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+            {extraEvents.length > 0 && (
+              <Card title="Prochains RDV" icon={Calendar}>
+                <ul className="space-y-3">
+                  {extraEvents.map((e) => (
+                    <li key={e.id} className="text-sm">
+                      <strong>{e.title}</strong>
+                      <div className="text-xs text-white/50">{new Date(e.startsAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</div>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </div>
+        )}
+
+        <div className="mt-10 rounded-2xl border border-dashed border-lilac/20 bg-lilac/5 p-6 text-sm text-white/70 text-center">
+          <Sparkles className="text-lilac mx-auto mb-2" size={20} />
+          Ton dashboard de performance complet (stats sociales, ROAS, vidéos publiées) sera activé une fois tes comptes sociaux connectés et le suivi configuré par notre équipe.
+        </div>
+      </main>
+    );
+  }
+
+  // Si on arrive ici sans client (cas edge), bail.
+  if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
 
   const allTodos = [...extraTodos, ...client.todos];
   const allEvents = [...extraEvents, ...client.upcomingEvents].sort(
@@ -105,7 +179,7 @@ export default function ClientDashboard() {
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-widest text-lilac mb-2">Espace client · {client.brand}</div>
+          <div className="text-xs uppercase tracking-widest text-lilac mb-2">Espace client · {session.brand || client.brand}</div>
           <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
             Salut <span className="text-gradient">{session.name.split(' ')[0]}</span> 👋
           </h1>
