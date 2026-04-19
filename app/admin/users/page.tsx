@@ -29,10 +29,8 @@ export default function AdminUsersPage() {
 
   const setRole = async (email: string, role: Role) => {
     const patch: Parameters<typeof updateUser>[1] = { role };
-    if (role === 'client') {
-      const u = users.find((x) => x.email === email);
-      if (u && !u.clientSlug) patch.clientSlug = CLIENTS[0].slug;
-    } else if (role === 'lead' || role === 'admin') {
+    // Quand on passe en client : ne PAS auto-binder à une démo (laisse vide pour vrai client)
+    if (role === 'lead' || role === 'admin') {
       patch.clientSlug = undefined;
     }
     await updateUser(email, patch);
@@ -40,7 +38,7 @@ export default function AdminUsersPage() {
   };
 
   const setClientSlug = async (email: string, slug: string) => {
-    await updateUser(email, { clientSlug: slug });
+    await updateUser(email, { clientSlug: slug || undefined });
     setUsers(await listUsers());
   };
 
@@ -59,6 +57,9 @@ export default function AdminUsersPage() {
         </h1>
         <p className="text-white/60 mt-2">
           <strong className="text-white">Lead</strong> = accès limité (conseils + ressources). <strong className="text-white">Client</strong> = espace complet.
+        </p>
+        <p className="text-xs text-white/40 mt-2 max-w-3xl">
+          💡 <strong className="text-white/60">Dossier client lié</strong> : laisse <span className="text-lilac">"Aucun"</span> pour un vrai client (dashboard onboarding qui se remplira avec ses vraies stats). Choisis une démo pour montrer un dashboard pré-rempli (utile pour les screenshots ou démonstrations).
         </p>
       </div>
 
@@ -123,8 +124,12 @@ export default function AdminUsersPage() {
                   <td className="p-4">
                     {u.role === 'client' ? (
                       <select value={u.clientSlug || ''} onChange={(e) => setClientSlug(u.email, e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lilac/50">
-                        {CLIENTS.map((c) => <option key={c.slug} value={c.slug}>{c.brand}</option>)}
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lilac/50"
+                        title="Lier à un dossier démo (stats préchargées) ou laisser vide pour un vrai client en onboarding">
+                        <option value="">— Aucun (vrai client)</option>
+                        <optgroup label="Démos avec stats préchargées">
+                          {CLIENTS.map((c) => <option key={c.slug} value={c.slug}>{c.brand}</option>)}
+                        </optgroup>
                       </select>
                     ) : <span className="text-white/30 text-xs">—</span>}
                   </td>
