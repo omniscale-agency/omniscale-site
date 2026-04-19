@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { login, getSessionAsync } from '@/lib/auth';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,6 +71,14 @@ export default function LoginPage() {
         <p className="text-white/60 mb-10">
           Connecte-toi à ton espace pour suivre tes performances en temps réel.
         </p>
+
+        <GoogleSignInButton />
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-xs uppercase tracking-widest text-white/40">ou avec email</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
           <div>

@@ -6,6 +6,7 @@ import { User, Mail, Lock, Building2, ArrowRight, Eye, EyeOff, Sparkles, MapPin,
 import Logo from '@/components/Logo';
 import { register, getSessionAsync } from '@/lib/auth';
 import { sendEmail } from '@/lib/sendEmail';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 const SECTORS = [
   'Boutique de mode / Prêt-à-porter',
@@ -130,6 +131,14 @@ export default function SignupPage() {
             <p className="text-white/60 mb-8">
               Rejoins notre communauté de commerçants qui passent à l'échelle. Accès gratuit aux ressources et conseils.
             </p>
+
+            <GoogleSignInButton label="S'inscrire avec Google" />
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs uppercase tracking-widest text-white/40">ou avec email</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
 
             <form onSubmit={onStep1Submit} className="space-y-4">
               <Field label="Nom complet" icon={User}>

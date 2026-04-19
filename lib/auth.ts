@@ -170,6 +170,19 @@ export async function logout() {
   clearSessionCache();
 }
 
+/** Sign in with Google (OAuth via Supabase). Redirige vers Google puis revient sur /auth/callback. */
+export async function signInWithGoogle() {
+  const sb = supabaseBrowser();
+  const redirectTo = typeof window !== 'undefined'
+    ? `${window.location.origin}/auth/callback`
+    : 'https://omniscale.fr/auth/callback';
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo, queryParams: { prompt: 'select_account' } },
+  });
+  if (error) throw error;
+}
+
 // ============================================================
 // USERS MANAGEMENT (admin only — RLS gate)
 // ============================================================
