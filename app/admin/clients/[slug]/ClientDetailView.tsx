@@ -3,32 +3,48 @@ import { useEffect, useState } from 'react';
 import {
   ArrowLeft, Eye, Users, TrendingUp, DollarSign, Target,
   CheckSquare, Square, Calendar, Activity, Building2, MapPin,
-  Mail, Phone, Sparkles,
+  Mail, Phone, Sparkles, Globe, Tag, Clock,
 } from 'lucide-react';
-import { getClientBySlug, ClientData, formatNumber, formatCurrency } from '@/lib/mockData';
-import { fetchTodos, fetchEvents, subscribeClientChanges } from '@/lib/sharedStore';
+import { findAdminClient, AdminClientRow } from '@/lib/adminClients';
+import { ClientData, formatNumber, formatCurrency } from '@/lib/mockData';
+import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import SendActionsBar from '@/components/admin/SendActionsBar';
 
 export default function ClientDetailView({ slug }: { slug: string }) {
-  const [client, setClient] = useState<ClientData | null>(null);
-  const [extras, setExtras] = useState<{ todos: any[]; events: any[] }>({ todos: [], events: [] });
+  const [row, setRow] = useState<AdminClientRow | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [extras, setExtras] = useState<{ todos: Todo[]; events: Event[] }>({ todos: [], events: [] });
 
   useEffect(() => {
-    setClient(getClientBySlug(slug) || null);
+    findAdminClient(slug).then((r) => {
+      setRow(r);
+      setLoaded(true);
+    });
   }, [slug]);
 
+  // Pour les extras (tâches/RDV), on utilise client_slug s'il existe (pour bind avec le dashboard client),
+  // sinon le user_id préfixé "user-" (cohérent avec dashboard/page.tsx)
+  const extrasSlug = row?.profile?.userId
+    ? (row.mockData?.slug || `user-${row.profile.userId}`)
+    : row?.mockData?.slug || slug;
+
   useEffect(() => {
+    if (!extrasSlug || !loaded) return;
     const refresh = async () => {
-      const [todos, events] = await Promise.all([fetchTodos(slug), fetchEvents(slug)]);
+      const [todos, events] = await Promise.all([fetchTodos(extrasSlug), fetchEvents(extrasSlug)]);
       setExtras({ todos, events });
     };
     refresh();
-    return subscribeClientChanges(slug, refresh);
-  }, [slug]);
+    return subscribeClientChanges(extrasSlug, refresh);
+  }, [extrasSlug, loaded]);
 
-  if (!client) {
+  if (!loaded) {
+    return <main className="p-12 text-white/60">Chargement…</main>;
+  }
+
+  if (!row) {
     return (
       <main className="p-12 text-white/60">
         Client introuvable. <a href="/admin/clients" className="text-lilac hover:underline">Retour à la liste</a>
@@ -36,9 +52,8 @@ export default function ClientDetailView({ slug }: { slug: string }) {
     );
   }
 
-  const views = client.stats.instagramViews + client.stats.tiktokViews;
-  const roas = client.stats.adRevenue / Math.max(1, client.stats.adSpend);
-  const totalFollowers = client.stats.instagramFollowers + client.stats.tiktokFollowers;
+  const client: ClientData | undefined = row.mockData;
+  const isOnboarding = !row.hasMockStats;
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
@@ -49,183 +64,236 @@ export default function ClientDetailView({ slug }: { slug: string }) {
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="w-20 h-20 rounded-3xl bg-lilac/20 border border-lilac/30 flex items-center justify-center font-display font-bold text-2xl text-lilac">
-            {client.brand.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()}
+            {row.brand.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <div className="text-xs uppercase tracking-widest text-lilac mb-1">Fiche client</div>
-            <h1 className="font-display text-4xl font-bold tracking-tight">{client.brand}</h1>
+            <div className="text-xs uppercase tracking-widest text-lilac mb-1 inline-flex items-center gap-2">
+              Fiche client
+              {isOnboarding && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 uppercase font-semibold inline-flex items-center gap-0.5">
+                  <Sparkles size={10} /> Onboarding
+                </span>
+              )}
+            </div>
+            <h1 className="font-display text-4xl font-bold tracking-tight">{row.brand}</h1>
             <div className="text-white/60 mt-1 flex flex-wrap items-center gap-3 text-sm">
-              <span className="inline-flex items-center gap-1.5"><Building2 size={13} /> {client.sector}</span>
-              <span className="inline-flex items-center gap-1.5"><MapPin size={13} /> {client.city}</span>
+              <span className="inline-flex items-center gap-1.5"><Building2 size={13} /> {row.sector}</span>
+              {row.city !== '—' && <span className="inline-flex items-center gap-1.5"><MapPin size={13} /> {row.city}</span>}
               <span className={`px-2 py-0.5 rounded-full text-xs ${
-                client.status === 'actif'
-                  ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-              }`}>● {client.status}</span>
+                isOnboarding ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  : 'bg-green-500/10 text-green-400 border border-green-500/30'
+              }`}>● {isOnboarding ? 'En onboarding' : 'actif'}</span>
             </div>
           </div>
         </div>
-        <SendActionsBar slug={client.slug} brand={client.brand} />
+        <SendActionsBar slug={extrasSlug} brand={row.brand} />
       </div>
 
-      {/* Contact */}
       <Card title="Contact" icon={Users} className="mb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Référent</div>
-            <div className="font-medium">{client.contact.name}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Email</div>
-            <a href={`mailto:${client.contact.email}`} className="font-medium text-lilac hover:underline inline-flex items-center gap-1.5">
-              <Mail size={13} /> {client.contact.email}
-            </a>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Téléphone</div>
-            <a href={`tel:${client.contact.phone.replace(/\s/g, '')}`} className="font-medium text-lilac hover:underline inline-flex items-center gap-1.5">
-              <Phone size={13} /> {client.contact.phone}
-            </a>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Closer</div>
-            <div className="font-medium">{client.closer}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">CA mensuel</div>
-            <div className="font-medium">{client.monthlyRevenue}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Client depuis</div>
-            <div className="font-medium">{new Date(client.joinedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-          </div>
+          {row.profile && (
+            <>
+              <Field label="Référent" value={row.profile.name} />
+              <Field label="Email" link={`mailto:${row.profile.email}`} value={row.profile.email} icon={Mail} />
+              {row.profile.phone && <Field label="Téléphone" link={`tel:${row.profile.phone.replace(/\s/g, '')}`} value={row.profile.phone} icon={Phone} />}
+              {row.profile.website && <Field label="Site web" link={row.profile.website.startsWith('http') ? row.profile.website : `https://${row.profile.website}`} value={row.profile.website} icon={Globe} external />}
+              <Field label="CA mensuel" value={row.monthlyRevenue} />
+              <Field label="Inscrit depuis" value={new Date(row.profile.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} />
+            </>
+          )}
+          {!row.profile && client && (
+            <>
+              <Field label="Référent" value={client.contact.name} />
+              <Field label="Email" link={`mailto:${client.contact.email}`} value={client.contact.email} icon={Mail} />
+              <Field label="Téléphone" link={`tel:${client.contact.phone.replace(/\s/g, '')}`} value={client.contact.phone} icon={Phone} />
+              <Field label="Closer" value={client.closer} />
+              <Field label="CA mensuel" value={client.monthlyRevenue} />
+              <Field label="Client depuis" value={new Date(client.joinedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} />
+            </>
+          )}
         </div>
       </Card>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Vues 30j" value={formatNumber(views)} delta={42} icon={Eye} accent="lilac" />
-        <StatCard label="Abonnés totaux" value={formatNumber(totalFollowers)} delta={18} icon={Users} accent="green" />
-        <StatCard label="ROAS Meta" value={`x${roas.toFixed(1)}`} delta={12} icon={TrendingUp} accent="amber" />
-        <StatCard label="CA pub 30j" value={formatCurrency(client.stats.adRevenue)} delta={28} icon={DollarSign} accent="pink" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Objectifs */}
-        <Card title="Objectifs" icon={Target}>
-          <div className="space-y-4">
-            {client.objectives.map((o) => {
-              const pct = Math.min(100, Math.round((o.current / o.target) * 100));
-              return (
-                <div key={o.label}>
-                  <div className="flex items-center justify-between mb-1.5 text-sm">
-                    <span className="text-white/80">{o.label}</span>
-                    <span className="font-mono text-white/60">{pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+      {/* Stats — uniquement si on a des données mockData */}
+      {client && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard label="Vues 30j" value={formatNumber(row.views)} delta={42} icon={Eye} accent="lilac" />
+            <StatCard label="Abonnés totaux" value={formatNumber(client.stats.instagramFollowers + client.stats.tiktokFollowers)} delta={18} icon={Users} accent="green" />
+            <StatCard label="ROAS Meta" value={`x${row.roas.toFixed(1)}`} delta={12} icon={TrendingUp} accent="amber" />
+            <StatCard label="CA pub 30j" value={formatCurrency(client.stats.adRevenue)} delta={28} icon={DollarSign} accent="pink" />
           </div>
-        </Card>
 
-        {/* Tâches */}
-        <Card title="Tâches" icon={CheckSquare} subtitle={`${[...extras.todos, ...client.todos].filter(t => !t.done).length} ouvertes`}>
-          <ul className="space-y-2.5 max-h-72 overflow-y-auto">
-            {[...extras.todos, ...client.todos].map((t) => (
-              <li key={t.id} className="flex items-start gap-3 text-sm">
-                {t.done ? <CheckSquare className="text-lilac mt-0.5 shrink-0" size={16} /> : <Square className="text-white/40 mt-0.5 shrink-0" size={16} />}
-                <div className={`flex-1 ${t.done ? 'line-through text-white/40' : ''}`}>
-                  {t.id.startsWith('admin-') && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold mr-1.5">Envoyée</span>
-                  )}
-                  {t.title}
-                  {t.assignee && <span className="text-xs text-white/40 ml-2">· {t.assignee}</span>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      {/* Activité + Calendrier */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card title="Activité récente" icon={Activity}>
-          <ol className="relative space-y-4 ml-3 border-l border-white/10 pl-5">
-            {client.activity.map((a) => (
-              <li key={a.id} className="relative">
-                <span className="absolute -left-[1.7rem] top-1 w-3 h-3 rounded-full bg-lilac ring-4 ring-black" />
-                <div className="text-sm">{a.label}</div>
-                <div className="text-xs text-white/40 mt-0.5">
-                  {new Date(a.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </Card>
-
-        <Card title="Prochains RDV" icon={Calendar}>
-          <ul className="space-y-3 max-h-72 overflow-y-auto">
-            {[...extras.events, ...client.upcomingEvents].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).map((e) => {
-              const d = new Date(e.startsAt);
-              return (
-                <li key={e.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
-                  <div className="text-center w-12 shrink-0 rounded-lg bg-lilac/10 border border-lilac/30 py-1.5">
-                    <div className="font-display font-bold text-lg leading-none text-lilac">{d.toLocaleDateString('fr-FR', { day: '2-digit' })}</div>
-                    <div className="text-[10px] uppercase text-white/60">{d.toLocaleDateString('fr-FR', { month: 'short' })}</div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium flex items-center gap-2">
-                      {e.id.startsWith('admin-') && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Envoyé</span>
-                      )}
-                      <span>{e.title}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <Card title="Objectifs" icon={Target}>
+              <div className="space-y-4">
+                {client.objectives.map((o) => {
+                  const pct = Math.min(100, Math.round((o.current / o.target) * 100));
+                  return (
+                    <div key={o.label}>
+                      <div className="flex items-center justify-between mb-1.5 text-sm">
+                        <span className="text-white/80">{o.label}</span>
+                        <span className="font-mono text-white/60">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400" style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                    <div className="text-xs text-white/50 mt-0.5">
-                      {d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {e.duration} min
-                    </div>
-                    <div className="text-xs text-white/40">avec {e.with}</div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            <TasksCard mockTodos={client.todos} extraTodos={extras.todos} />
+          </div>
+        </>
+      )}
+
+      {/* Si pas de mock data, on affiche juste les tâches/RDV envoyés par admin */}
+      {!client && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <TasksCard mockTodos={[]} extraTodos={extras.todos} />
+          <UpcomingCard mockEvents={[]} extraEvents={extras.events} />
+        </div>
+      )}
+
+      {client && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card title="Activité récente" icon={Activity}>
+            <ol className="relative space-y-4 ml-3 border-l border-white/10 pl-5">
+              {client.activity.map((a) => (
+                <li key={a.id} className="relative">
+                  <span className="absolute -left-[1.7rem] top-1 w-3 h-3 rounded-full bg-lilac ring-4 ring-black" />
+                  <div className="text-sm">{a.label}</div>
+                  <div className="text-xs text-white/40 mt-0.5">
+                    {new Date(a.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </li>
-              );
-            })}
-          </ul>
-        </Card>
-      </div>
-
-      {/* Vidéos */}
-      <Card title="Vidéos publiées (30j)" icon={Sparkles}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-widest text-white/40">
-              <tr className="border-b border-white/5">
-                <th className="text-left p-3 font-normal">Titre</th>
-                <th className="text-left p-3 font-normal">Plateforme</th>
-                <th className="text-left p-3 font-normal">Date</th>
-                <th className="text-right p-3 font-normal">Vues</th>
-                <th className="text-right p-3 font-normal">Likes</th>
-                <th className="text-right p-3 font-normal">Comm.</th>
-                <th className="text-right p-3 font-normal">Partages</th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.videos.map((v) => (
-                <tr key={v.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                  <td className="p-3 font-medium">{v.title}</td>
-                  <td className="p-3 text-white/70 capitalize">{v.platform}</td>
-                  <td className="p-3 text-white/60">{new Date(v.publishedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</td>
-                  <td className="p-3 text-right font-mono">{formatNumber(v.views)}</td>
-                  <td className="p-3 text-right font-mono">{formatNumber(v.likes)}</td>
-                  <td className="p-3 text-right font-mono">{formatNumber(v.comments)}</td>
-                  <td className="p-3 text-right font-mono">{formatNumber(v.shares)}</td>
-                </tr>
               ))}
-            </tbody>
-          </table>
+            </ol>
+          </Card>
+          <UpcomingCard mockEvents={client.upcomingEvents} extraEvents={extras.events} />
         </div>
-      </Card>
+      )}
+
+      {/* Vidéos uniquement si mock */}
+      {client && (
+        <Card title="Vidéos publiées (30j)" icon={Sparkles}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase tracking-widest text-white/40">
+                <tr className="border-b border-white/5">
+                  <th className="text-left p-3 font-normal">Titre</th>
+                  <th className="text-left p-3 font-normal">Plateforme</th>
+                  <th className="text-left p-3 font-normal">Date</th>
+                  <th className="text-right p-3 font-normal">Vues</th>
+                  <th className="text-right p-3 font-normal">Likes</th>
+                  <th className="text-right p-3 font-normal">Comm.</th>
+                  <th className="text-right p-3 font-normal">Partages</th>
+                </tr>
+              </thead>
+              <tbody>
+                {client.videos.map((v) => (
+                  <tr key={v.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                    <td className="p-3 font-medium">{v.title}</td>
+                    <td className="p-3 text-white/70 capitalize">{v.platform}</td>
+                    <td className="p-3 text-white/60">{new Date(v.publishedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</td>
+                    <td className="p-3 text-right font-mono">{formatNumber(v.views)}</td>
+                    <td className="p-3 text-right font-mono">{formatNumber(v.likes)}</td>
+                    <td className="p-3 text-right font-mono">{formatNumber(v.comments)}</td>
+                    <td className="p-3 text-right font-mono">{formatNumber(v.shares)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {!client && (
+        <div className="rounded-2xl border border-dashed border-lilac/20 bg-lilac/5 p-6 text-sm text-white/70 text-center">
+          <Sparkles className="text-lilac mx-auto mb-2" size={20} />
+          Ce client est en phase d'onboarding. Stats sociales, objectifs et vidéos seront disponibles une fois ses comptes connectés et le suivi configuré.
+        </div>
+      )}
     </main>
+  );
+}
+
+function Field({ label, value, link, icon: Icon, external }: { label: string; value: string; link?: string; icon?: React.ElementType; external?: boolean }) {
+  const content = link ? (
+    <a href={link} target={external ? '_blank' : undefined} rel={external ? 'noopener noreferrer' : undefined}
+      className="font-medium text-lilac hover:underline inline-flex items-center gap-1.5">
+      {Icon && <Icon size={13} />} {value}
+    </a>
+  ) : (
+    <span className="font-medium">{value}</span>
+  );
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-widest text-white/40 mb-1">{label}</div>
+      {content}
+    </div>
+  );
+}
+
+function TasksCard({ mockTodos, extraTodos }: { mockTodos: any[]; extraTodos: Todo[] }) {
+  const all = [...extraTodos, ...mockTodos];
+  return (
+    <Card title="Tâches" icon={CheckSquare} subtitle={`${all.filter((t) => !t.done).length} ouvertes`}>
+      {all.length === 0 ? (
+        <div className="text-sm text-white/50 italic">Aucune tâche pour le moment.</div>
+      ) : (
+        <ul className="space-y-2.5 max-h-72 overflow-y-auto">
+          {all.map((t) => (
+            <li key={t.id} className="flex items-start gap-3 text-sm">
+              {t.done ? <CheckSquare className="text-lilac mt-0.5 shrink-0" size={16} /> : <Square className="text-white/40 mt-0.5 shrink-0" size={16} />}
+              <div className={`flex-1 ${t.done ? 'line-through text-white/40' : ''}`}>
+                {extraTodos.includes(t) && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold mr-1.5">Envoyée</span>
+                )}
+                {t.title}
+                {t.assignee && <span className="text-xs text-white/40 ml-2">· {t.assignee}</span>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function UpcomingCard({ mockEvents, extraEvents }: { mockEvents: any[]; extraEvents: Event[] }) {
+  const all = [...extraEvents, ...mockEvents].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  return (
+    <Card title="Prochains RDV" icon={Calendar}>
+      {all.length === 0 ? (
+        <div className="text-sm text-white/50 italic">Aucun RDV planifié.</div>
+      ) : (
+        <ul className="space-y-3 max-h-72 overflow-y-auto">
+          {all.map((e) => {
+            const d = new Date(e.startsAt);
+            return (
+              <li key={e.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
+                <div className="text-center w-12 shrink-0 rounded-lg bg-lilac/10 border border-lilac/30 py-1.5">
+                  <div className="font-display font-bold text-lg leading-none text-lilac">{d.toLocaleDateString('fr-FR', { day: '2-digit' })}</div>
+                  <div className="text-[10px] uppercase text-white/60">{d.toLocaleDateString('fr-FR', { month: 'short' })}</div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium flex items-center gap-2">
+                    {extraEvents.includes(e) && (<span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Envoyé</span>)}
+                    <span>{e.title}</span>
+                  </div>
+                  <div className="text-xs text-white/50 mt-0.5">
+                    {d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {e.duration} min
+                  </div>
+                  <div className="text-xs text-white/40">avec {e.with}</div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }
