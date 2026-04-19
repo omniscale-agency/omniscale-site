@@ -1,34 +1,35 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { CheckSquare, Square, Clock, BadgePlus } from 'lucide-react';
-import { getSession, Session } from '@/lib/auth';
+import { getSessionAsync, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug } from '@/lib/mockData';
-import { getExtraTodos, toggleTodo as toggleExtra, subscribe } from '@/lib/sharedStore';
+import { fetchTodos, toggleTodo, subscribeClientChanges, Todo } from '@/lib/sharedStore';
 import RoleGate from '@/components/RoleGate';
 
 export default function TodosPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
-  const [todos, setTodos] = useState<ClientData['todos']>([]);
-  const [extras, setExtras] = useState<ClientData['todos']>([]);
+  const [mockTodos, setMockTodos] = useState<ClientData['todos']>([]);
+  const [dbTodos, setDbTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<'all' | 'open' | 'done'>('open');
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setSession(s);
-    const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
-    if (c) {
-      setClient(c);
-      setTodos(c.todos);
-    }
+    getSessionAsync().then((s) => {
+      if (!s) return;
+      setSession(s);
+      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
+      if (c) {
+        setClient(c);
+        setMockTodos(c.todos);
+      }
+    });
   }, []);
 
   useEffect(() => {
     if (!client) return;
-    const refresh = () => setExtras(getExtraTodos(client.slug));
+    const refresh = async () => setDbTodos(await fetchTodos(client.slug));
     refresh();
-    return subscribe(refresh);
+    return subscribeClientChanges(client.slug, refresh);
   }, [client]);
 
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
@@ -36,16 +37,19 @@ export default function TodosPage() {
     return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Liste des tâches"><></></RoleGate>;
   }
 
-  const all = [...extras, ...todos];
-  const visible = all.filter((t) =>
-    filter === 'all' ? true : filter === 'open' ? !t.done : t.done,
-  );
+  // Merge dbTodos + mockTodos. Détection: les UUID DB sont longs.
+  type Item = { id: string; title: string; done: boolean; dueDate?: string; assignee?: string; priority?: string; fromDB: boolean };
+  const all: Item[] = [
+    ...dbTodos.map((t) => ({ ...t, fromDB: true })),
+    ...mockTodos.map((t) => ({ ...t, fromDB: false })),
+  ];
+  const visible = all.filter((t) => filter === 'all' ? true : filter === 'open' ? !t.done : t.done);
 
-  const toggle = (id: string) => {
-    if (id.startsWith('admin-')) {
-      toggleExtra(client.slug, id);
+  const toggle = async (item: Item) => {
+    if (item.fromDB) {
+      await toggleTodo(item.id);
     } else {
-      setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+      setMockTodos((prev) => prev.map((t) => (t.id === item.id ? { ...t, done: !t.done } : t)));
     }
   };
 
@@ -59,13 +63,8 @@ export default function TodosPage() {
         </div>
         <div className="flex gap-2">
           {(['open', 'all', 'done'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                filter === f ? 'bg-lilac text-ink font-medium' : 'bg-white/5 text-white/60 hover:bg-white/10'
-              }`}
-            >
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${filter === f ? 'bg-lilac text-ink font-medium' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>
               {f === 'open' ? 'En cours' : f === 'done' ? 'Terminées' : 'Toutes'}
             </button>
           ))}
@@ -74,42 +73,26 @@ export default function TodosPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
         {visible.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => toggle(t.id)}
-            className="w-full flex items-start gap-4 p-5 text-left hover:bg-white/5 transition-colors"
-          >
-            {t.done ? (
-              <CheckSquare className="text-lilac shrink-0 mt-0.5" size={20} />
-            ) : (
-              <Square className="text-white/40 shrink-0 mt-0.5" size={20} />
-            )}
+          <button key={t.id} onClick={() => toggle(t)} className="w-full flex items-start gap-4 p-5 text-left hover:bg-white/5 transition-colors">
+            {t.done ? <CheckSquare className="text-lilac shrink-0 mt-0.5" size={20} /> : <Square className="text-white/40 shrink-0 mt-0.5" size={20} />}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2">
-                {t.id.startsWith('admin-') && (
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold mt-0.5 inline-flex items-center gap-1">
-                    <BadgePlus size={10} /> Envoyée par Omniscale
-                  </span>
-                )}
-              </div>
+              {t.fromDB && (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold inline-flex items-center gap-1">
+                  <BadgePlus size={10} /> Envoyée par Omniscale
+                </span>
+              )}
               <div className={`font-medium mt-1 ${t.done ? 'line-through text-white/40' : ''}`}>{t.title}</div>
               <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
                 {t.dueDate && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={12} /> {new Date(t.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                  </span>
+                  <span className="inline-flex items-center gap-1"><Clock size={12} /> {new Date(t.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
                 )}
                 {t.assignee && <span>👤 {t.assignee}</span>}
-                {t.priority === 'high' && (
-                  <span className="text-red-400">● Priorité haute</span>
-                )}
+                {t.priority === 'high' && <span className="text-red-400">● Priorité haute</span>}
               </div>
             </div>
           </button>
         ))}
-        {visible.length === 0 && (
-          <div className="p-12 text-center text-white/50 italic">Aucune tâche dans ce filtre.</div>
-        )}
+        {visible.length === 0 && <div className="p-12 text-center text-white/50 italic">Aucune tâche dans ce filtre.</div>}
       </div>
     </main>
   );

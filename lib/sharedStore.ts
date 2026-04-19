@@ -1,73 +1,119 @@
 'use client';
-// Store partagé local : admin écrit, client lit (via localStorage).
-// À remplacer par une vraie DB (Supabase) en phase 2.
+import { supabaseBrowser } from './supabase/client';
 
-import type { ClientData } from './mockData';
-
-type Todo = ClientData['todos'][number];
-type Event = ClientData['upcomingEvents'][number];
-
-const KEY = (slug: string, kind: 'todos' | 'events') => `omniscale_extra_${kind}_${slug}`;
-
-function read<T>(key: string): T[] {
-  if (typeof window === 'undefined') return [];
-  const raw = localStorage.getItem(key);
-  if (!raw) return [];
-  try { return JSON.parse(raw) as T[]; } catch { return []; }
+export interface Todo {
+  id: string;
+  title: string;
+  done: boolean;
+  dueDate?: string;
+  assignee?: string;
+  priority?: 'low' | 'med' | 'high';
 }
 
-function write<T>(key: string, items: T[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(items));
-  // Dispatch un événement custom pour update intra-tab
-  window.dispatchEvent(new CustomEvent('omniscale-store-change', { detail: { key } }));
+export interface Event {
+  id: string;
+  title: string;
+  startsAt: string;
+  duration: number;
+  type: 'call' | 'shooting' | 'review' | 'workshop';
+  with: string;
 }
 
-export function getExtraTodos(slug: string): Todo[] {
-  return read<Todo>(KEY(slug, 'todos'));
-}
-
-export function getExtraEvents(slug: string): Event[] {
-  return read<Event>(KEY(slug, 'events'));
-}
-
-export function addTodo(slug: string, todo: Omit<Todo, 'id'>) {
-  const items = getExtraTodos(slug);
-  const newTodo: Todo = { ...todo, id: `admin-${Date.now()}` };
-  write(KEY(slug, 'todos'), [newTodo, ...items]);
-  return newTodo;
-}
-
-export function toggleTodo(slug: string, id: string) {
-  const items = getExtraTodos(slug);
-  write(KEY(slug, 'todos'), items.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-}
-
-export function deleteExtraTodo(slug: string, id: string) {
-  const items = getExtraTodos(slug);
-  write(KEY(slug, 'todos'), items.filter((t) => t.id !== id));
-}
-
-export function addEvent(slug: string, event: Omit<Event, 'id'>) {
-  const items = getExtraEvents(slug);
-  const newEvent: Event = { ...event, id: `admin-${Date.now()}` };
-  write(KEY(slug, 'events'), [newEvent, ...items]);
-  return newEvent;
-}
-
-export function deleteExtraEvent(slug: string, id: string) {
-  const items = getExtraEvents(slug);
-  write(KEY(slug, 'events'), items.filter((e) => e.id !== id));
-}
-
-// Hook helper pour s'abonner aux changements
-export function subscribe(callback: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const handler = () => callback();
-  window.addEventListener('storage', handler);
-  window.addEventListener('omniscale-store-change', handler);
-  return () => {
-    window.removeEventListener('storage', handler);
-    window.removeEventListener('omniscale-store-change', handler);
+// ---------- TODOS ----------
+function todoFromDB(r: any): Todo {
+  return {
+    id: r.id,
+    title: r.title,
+    done: r.done,
+    dueDate: r.due_date || undefined,
+    assignee: r.assignee || undefined,
+    priority: r.priority || undefined,
   };
+}
+
+export async function fetchTodos(clientSlug: string): Promise<Todo[]> {
+  const sb = supabaseBrowser();
+  const { data } = await sb.from('todos').select('*')
+    .eq('client_slug', clientSlug)
+    .order('created_at', { ascending: false });
+  return (data || []).map(todoFromDB);
+}
+
+export async function addTodo(clientSlug: string, todo: Omit<Todo, 'id'>): Promise<Todo | null> {
+  const sb = supabaseBrowser();
+  const { data: { user } } = await sb.auth.getUser();
+  const { data } = await sb.from('todos').insert({
+    client_slug: clientSlug,
+    title: todo.title,
+    done: todo.done,
+    due_date: todo.dueDate || null,
+    assignee: todo.assignee || null,
+    priority: todo.priority || null,
+    created_by: user?.id,
+  }).select().single();
+  return data ? todoFromDB(data) : null;
+}
+
+export async function toggleTodo(id: string) {
+  const sb = supabaseBrowser();
+  const { data: cur } = await sb.from('todos').select('done').eq('id', id).single();
+  if (!cur) return;
+  await sb.from('todos').update({ done: !cur.done }).eq('id', id);
+}
+
+export async function deleteTodo(id: string) {
+  const sb = supabaseBrowser();
+  await sb.from('todos').delete().eq('id', id);
+}
+
+// ---------- EVENTS ----------
+function eventFromDB(r: any): Event {
+  return {
+    id: r.id,
+    title: r.title,
+    startsAt: r.starts_at,
+    duration: r.duration,
+    type: r.type,
+    with: r.with_who || '',
+  };
+}
+
+export async function fetchEvents(clientSlug: string): Promise<Event[]> {
+  const sb = supabaseBrowser();
+  const { data } = await sb.from('events').select('*')
+    .eq('client_slug', clientSlug)
+    .order('starts_at', { ascending: true });
+  return (data || []).map(eventFromDB);
+}
+
+export async function addEvent(clientSlug: string, event: Omit<Event, 'id'>): Promise<Event | null> {
+  const sb = supabaseBrowser();
+  const { data: { user } } = await sb.auth.getUser();
+  const { data } = await sb.from('events').insert({
+    client_slug: clientSlug,
+    title: event.title,
+    starts_at: event.startsAt,
+    duration: event.duration,
+    type: event.type,
+    with_who: event.with,
+    created_by: user?.id,
+  }).select().single();
+  return data ? eventFromDB(data) : null;
+}
+
+export async function deleteEvent(id: string) {
+  const sb = supabaseBrowser();
+  await sb.from('events').delete().eq('id', id);
+}
+
+// ---------- REALTIME SUBSCRIPTION ----------
+/** Subscribe aux changements live des todos + events d'un client. Renvoie unsubscribe. */
+export function subscribeClientChanges(clientSlug: string, cb: () => void): () => void {
+  const sb = supabaseBrowser();
+  const ch = sb
+    .channel(`client-${clientSlug}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'todos', filter: `client_slug=eq.${clientSlug}` }, () => cb())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `client_slug=eq.${clientSlug}` }, () => cb())
+    .subscribe();
+  return () => { sb.removeChannel(ch); };
 }

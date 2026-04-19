@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { User, Building2, Phone, Mail, MapPin, Shield } from 'lucide-react';
-import { getSession, Session } from '@/lib/auth';
+import { User, Building2, Shield } from 'lucide-react';
+import { getSessionAsync, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug } from '@/lib/mockData';
 
 export default function SettingsPage() {
@@ -9,10 +9,11 @@ export default function SettingsPage() {
   const [client, setClient] = useState<ClientData | null>(null);
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setSession(s);
-    setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
+    getSessionAsync().then((s) => {
+      if (!s) return;
+      setSession(s);
+      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
+    });
   }, []);
 
   if (!session || !client) return <div className="p-12 text-white/60">Chargement…</div>;
@@ -32,6 +33,7 @@ export default function SettingsPage() {
           <div className="space-y-3 text-sm">
             <Row label="Nom" value={session.name} />
             <Row label="Email" value={session.email} />
+            <Row label="Rôle" value={session.role === 'admin' ? 'Administrateur' : session.role === 'client' ? 'Client' : 'Lead'} />
           </div>
         </div>
 
@@ -40,7 +42,7 @@ export default function SettingsPage() {
             <Building2 size={18} className="text-lilac" /> Entreprise
           </h2>
           <div className="space-y-3 text-sm">
-            <Row label="Marque" value={client.brand} />
+            <Row label="Marque" value={session.brand || client.brand} />
             <Row label="Secteur" value={client.sector} />
             <Row label="Ville" value={client.city} />
             <Row label="Client depuis" value={new Date(client.joinedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} />
@@ -52,10 +54,6 @@ export default function SettingsPage() {
             <Shield size={18} className="text-lilac" /> Sécurité
           </h2>
           <button className="text-sm text-lilac hover:underline">Changer mon mot de passe</button>
-        </div>
-
-        <div className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-white/50 text-center">
-          🔌 Modifications à brancher au backend (Supabase) — phase 2.
         </div>
       </div>
     </main>

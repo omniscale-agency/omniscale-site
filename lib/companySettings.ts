@@ -1,4 +1,5 @@
 'use client';
+import { supabaseBrowser } from './supabase/client';
 
 export interface CompanySettings {
   name: string;
@@ -15,12 +16,10 @@ export interface CompanySettings {
   iban: string;
   bic: string;
   bankName: string;
-  defaultPaymentTerms: number; // jours
-  defaultVatRate: number;      // %
+  defaultPaymentTerms: number;
+  defaultVatRate: number;
   invoiceFooter: string;
 }
-
-const KEY = 'omniscale_company_v1';
 
 export const DEFAULT_SETTINGS: CompanySettings = {
   name: 'Omniscale',
@@ -42,26 +41,37 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   invoiceFooter: 'Merci pour votre confiance — Omniscale.',
 };
 
-export function getCompanySettings(): CompanySettings {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return DEFAULT_SETTINGS;
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } as CompanySettings; } catch { return DEFAULT_SETTINGS; }
+let _cached: CompanySettings | null = null;
+
+export async function fetchCompanySettings(): Promise<CompanySettings> {
+  const sb = supabaseBrowser();
+  const { data } = await sb.from('company_settings').select('data').eq('id', 1).single();
+  const merged = { ...DEFAULT_SETTINGS, ...(data?.data || {}) } as CompanySettings;
+  _cached = merged;
+  return merged;
 }
 
-export function saveCompanySettings(settings: CompanySettings) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(settings));
-  window.dispatchEvent(new CustomEvent('omniscale-company-change'));
+/** Sync — retourne le cache (DEFAULT au démarrage). À utiliser après fetchCompanySettings. */
+export function getCompanySettings(): CompanySettings {
+  return _cached || DEFAULT_SETTINGS;
+}
+
+export async function saveCompanySettings(settings: CompanySettings) {
+  const sb = supabaseBrowser();
+  await sb.from('company_settings').update({ data: settings, updated_at: new Date().toISOString() }).eq('id', 1);
+  _cached = settings;
 }
 
 export function subscribeCompany(cb: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const h = () => cb();
-  window.addEventListener('omniscale-company-change', h);
-  window.addEventListener('storage', h);
-  return () => {
-    window.removeEventListener('omniscale-company-change', h);
-    window.removeEventListener('storage', h);
-  };
+  const sb = supabaseBrowser();
+  const ch = sb
+    .channel('company-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () => cb())
+    .subscribe();
+  return () => { sb.removeChannel(ch); };
+}
+
+// Préload au démarrage côté client
+if (typeof window !== 'undefined') {
+  fetchCompanySettings().catch(() => {});
 }

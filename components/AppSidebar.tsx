@@ -7,7 +7,7 @@ import {
   Lightbulb, Plug, Sparkles, ArrowRight,
 } from 'lucide-react';
 import Logo from './Logo';
-import { getSession, logout, Session, Role } from '@/lib/auth';
+import { getSessionAsync, logout, Session, Role } from '@/lib/auth';
 import { BOOKING_URL } from '@/lib/config';
 
 interface NavItem {
@@ -48,11 +48,12 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) { router.replace('/login'); return; }
-    if (variant === 'admin' && s.role !== 'admin') { router.replace('/dashboard'); return; }
-    if (variant === 'client' && s.role === 'admin') { router.replace('/admin'); return; }
-    setSession(s);
+    getSessionAsync().then((s) => {
+      if (!s) { router.replace('/login'); return; }
+      if (variant === 'admin' && s.role !== 'admin') { router.replace('/dashboard'); return; }
+      if (variant === 'client' && s.role === 'admin') { router.replace('/admin'); return; }
+      setSession(s);
+    });
   }, [router, variant]);
 
   if (!session) return null;
@@ -60,7 +61,7 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
   const items = variant === 'admin' ? ADMIN_NAV : CLIENT_NAV;
   const isLead = session.role === 'lead';
 
-  const onLogout = () => { logout(); router.push('/login'); };
+  const onLogout = async () => { await logout(); router.push('/login'); };
 
   return (
     <>

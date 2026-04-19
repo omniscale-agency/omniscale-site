@@ -105,10 +105,10 @@ function TodoForm({ slug, onSent }: { slug: string; onSent: (title: string) => v
   const [assignee, setAssignee] = useState('Le client');
   const [priority, setPriority] = useState<'low' | 'med' | 'high'>('med');
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    addTodo(slug, { title: title.trim(), done: false, dueDate: dueDate || undefined, assignee, priority });
+    await addTodo(slug, { title: title.trim(), done: false, dueDate: dueDate || undefined, assignee, priority });
     onSent(title.trim());
   };
 
@@ -155,11 +155,11 @@ function EventForm({ slug, onSent }: { slug: string; onSent: (title: string) => 
   const [type, setType] = useState<'call' | 'shooting' | 'review' | 'workshop'>('call');
   const [withWho, setWithWho] = useState('Antoine');
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !date) return;
     const startsAt = new Date(`${date}T${time}:00`).toISOString();
-    addEvent(slug, { title: title.trim(), startsAt, duration, type, with: withWho });
+    await addEvent(slug, { title: title.trim(), startsAt, duration, type, with: withWho });
     onSent(title.trim());
   };
 

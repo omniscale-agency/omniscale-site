@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Users, Shield, Sparkles, Crown, Search, Trash2, ChevronDown, AlertCircle } from 'lucide-react';
+import { Users, Shield, Sparkles, Crown, Search, Trash2, AlertCircle } from 'lucide-react';
 import { listUsers, updateUser, deleteUser, subscribeUsers, User, Role } from '@/lib/auth';
 import { CLIENTS } from '@/lib/mockData';
 
@@ -11,7 +11,7 @@ export default function AdminUsersPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    const refresh = () => setUsers(listUsers());
+    const refresh = async () => setUsers(await listUsers());
     refresh();
     return subscribeUsers(refresh);
   }, []);
@@ -27,19 +27,28 @@ export default function AdminUsersPage() {
     lead: users.filter((u) => u.role === 'lead').length,
   };
 
-  const setRole = (email: string, role: Role) => {
-    const patch: Partial<User> = { role };
-    // si on passe en client et pas de slug, on lie à un dossier mockData libre par défaut
+  const setRole = async (email: string, role: Role) => {
+    const patch: Parameters<typeof updateUser>[1] = { role };
     if (role === 'client') {
       const u = users.find((x) => x.email === email);
       if (u && !u.clientSlug) patch.clientSlug = CLIENTS[0].slug;
-    } else if (role === 'lead') {
+    } else if (role === 'lead' || role === 'admin') {
       patch.clientSlug = undefined;
     }
-    updateUser(email, patch);
+    await updateUser(email, patch);
+    setUsers(await listUsers());
   };
 
-  const setClientSlug = (email: string, slug: string) => updateUser(email, { clientSlug: slug });
+  const setClientSlug = async (email: string, slug: string) => {
+    await updateUser(email, { clientSlug: slug });
+    setUsers(await listUsers());
+  };
+
+  const onDelete = async (email: string) => {
+    await deleteUser(email);
+    setConfirmDelete(null);
+    setUsers(await listUsers());
+  };
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
@@ -49,11 +58,10 @@ export default function AdminUsersPage() {
           Utilisateurs & <span className="text-gradient">rôles</span>
         </h1>
         <p className="text-white/60 mt-2">
-          Gère les rôles : <strong className="text-white">Lead</strong> = accès limité (conseils + ressources). <strong className="text-white">Client</strong> = espace complet.
+          <strong className="text-white">Lead</strong> = accès limité (conseils + ressources). <strong className="text-white">Client</strong> = espace complet.
         </p>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <KpiBtn label="Tous" count={counts.all} active={filter === 'all'} onClick={() => setFilter('all')} icon={Users} />
         <KpiBtn label="Admins" count={counts.admin} active={filter === 'admin'} onClick={() => setFilter('admin')} icon={Crown} accent="amber" />
@@ -61,14 +69,12 @@ export default function AdminUsersPage() {
         <KpiBtn label="Leads" count={counts.lead} active={filter === 'lead'} onClick={() => setFilter('lead')} icon={Sparkles} accent="lilac" />
       </div>
 
-      {/* Search */}
       <div className="relative mb-6 max-w-md">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher email, nom, marque..."
           className="w-full bg-white/5 border border-white/10 rounded-xl pl-11 pr-4 py-3 outline-none focus:border-lilac/50" />
       </div>
 
-      {/* Table */}
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -101,20 +107,14 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="p-4 text-white/70">{u.brand || '—'}</td>
-                  <td className="p-4 text-white/60 text-xs">
-                    {new Date(u.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
+                  <td className="p-4 text-white/60 text-xs">{new Date(u.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                   <td className="p-4">
-                    <select
-                      value={u.role}
-                      onChange={(e) => setRole(u.email, e.target.value as Role)}
-                      disabled={u.email === 'admin@omniscale.fr'}
+                    <select value={u.role} onChange={(e) => setRole(u.email, e.target.value as Role)}
                       className={`bg-white/5 border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lilac/50 cursor-pointer ${
                         u.role === 'admin' ? 'border-amber-500/30 text-amber-400' :
                         u.role === 'client' ? 'border-green-500/30 text-green-400' :
                         'border-lilac/30 text-lilac'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
+                      }`}>
                       <option value="lead">Lead</option>
                       <option value="client">Client</option>
                       <option value="admin">Admin</option>
@@ -122,37 +122,23 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4">
                     {u.role === 'client' ? (
-                      <select
-                        value={u.clientSlug || ''}
-                        onChange={(e) => setClientSlug(u.email, e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lilac/50"
-                      >
+                      <select value={u.clientSlug || ''} onChange={(e) => setClientSlug(u.email, e.target.value)}
+                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lilac/50">
                         {CLIENTS.map((c) => <option key={c.slug} value={c.slug}>{c.brand}</option>)}
                       </select>
-                    ) : (
-                      <span className="text-white/30 text-xs">—</span>
-                    )}
+                    ) : <span className="text-white/30 text-xs">—</span>}
                   </td>
                   <td className="p-4 text-right">
-                    {u.email !== 'admin@omniscale.fr' && (
-                      <button
-                        onClick={() => setConfirmDelete(u.email)}
-                        className="text-white/30 hover:text-red-400 p-2"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                    <button onClick={() => setConfirmDelete(u.email)} className="text-white/30 hover:text-red-400 p-2" title="Supprimer">
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        {visible.length === 0 && (
-          <div className="p-12 text-center text-white/50">Aucun utilisateur dans ce filtre.</div>
-        )}
+        {visible.length === 0 && (<div className="p-12 text-center text-white/50">Aucun utilisateur dans ce filtre.</div>)}
       </div>
 
       {confirmDelete && (
@@ -167,7 +153,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setConfirmDelete(null)} className="text-sm px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10">Annuler</button>
-              <button onClick={() => { deleteUser(confirmDelete); setConfirmDelete(null); }} className="text-sm px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600">Supprimer</button>
+              <button onClick={() => onDelete(confirmDelete)} className="text-sm px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600">Supprimer</button>
             </div>
           </div>
         </div>

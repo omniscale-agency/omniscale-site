@@ -70,7 +70,7 @@ export default function AdminFinancePage() {
 
   useEffect(() => {
     setMounted(true);
-    const refresh = () => setCreatedInvoices(listInvoices());
+    const refresh = async () => setCreatedInvoices(await listInvoices());
     refresh();
     return subscribeInvoices(refresh);
   }, []);

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { FileText, Download, CheckCircle2, Clock, AlertCircle, Receipt, Send } from 'lucide-react';
-import { getSession, Session } from '@/lib/auth';
+import { FileText, Download, CheckCircle2, Clock, Receipt, Send } from 'lucide-react';
+import { getSessionAsync, Session } from '@/lib/auth';
 import { CLIENTS, getClientBySlug, formatCurrency } from '@/lib/mockData';
 import RoleGate from '@/components/RoleGate';
 import { listInvoicesForClient, subscribeInvoices, computeTotals, InvoiceDoc } from '@/lib/invoicesStore';
@@ -14,15 +14,16 @@ export default function ClientInvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceDoc[]>([]);
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setSession(s);
-    const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
-    setClient(c || CLIENTS[0]);
+    getSessionAsync().then((s) => {
+      if (!s) return;
+      setSession(s);
+      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
+      setClient(c || CLIENTS[0]);
+    });
   }, []);
 
   useEffect(() => {
-    const refresh = () => setInvoices(listInvoicesForClient(client.slug));
+    const refresh = async () => setInvoices(await listInvoicesForClient(client.slug));
     refresh();
     return subscribeInvoices(refresh);
   }, [client]);
@@ -43,7 +44,6 @@ export default function ClientInvoicesPage() {
         <p className="text-white/60 mt-2">Toutes les factures et demandes de paiement reçues d'Omniscale</p>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <div className="text-xs uppercase tracking-widest text-white/50 mb-1">Total reçu</div>
@@ -92,7 +92,7 @@ export default function ClientInvoicesPage() {
                         </span>
                       )}
                     </div>
-                    <div className="font-medium">{inv.lines[0]?.description || 'Prestations'}</div>
+                    <div className="font-medium">{inv.lines[0]?.productName || inv.lines[0]?.description || 'Prestations'}</div>
                     <div className="text-xs text-white/40 mt-0.5">
                       Émise le {new Date(inv.issuedAt).toLocaleDateString('fr-FR')} · {inv.lines.length} ligne(s)
                     </div>
@@ -101,10 +101,7 @@ export default function ClientInvoicesPage() {
                     <div className="font-display font-bold text-lg">{formatCurrency(t.total)}</div>
                     <div className="text-xs text-white/40">TTC</div>
                   </div>
-                  <button
-                    onClick={() => downloadPDF(inv)}
-                    className="ml-2 inline-flex items-center gap-1.5 bg-white/5 hover:bg-lilac hover:text-ink border border-white/10 hover:border-lilac text-white text-sm px-3 py-2 rounded-lg transition-colors"
-                  >
+                  <button onClick={() => downloadPDF(inv)} className="ml-2 inline-flex items-center gap-1.5 bg-white/5 hover:bg-lilac hover:text-ink border border-white/10 hover:border-lilac text-white text-sm px-3 py-2 rounded-lg transition-colors">
                     <Download size={14} /> PDF
                   </button>
                 </div>

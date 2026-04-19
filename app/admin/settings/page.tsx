@@ -1,19 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Building2, Banknote, FileText, Save, CheckCircle2 } from 'lucide-react';
-import { getCompanySettings, saveCompanySettings, CompanySettings, DEFAULT_SETTINGS } from '@/lib/companySettings';
+import { fetchCompanySettings, saveCompanySettings, CompanySettings, DEFAULT_SETTINGS } from '@/lib/companySettings';
 
 export default function AdminCompanySettingsPage() {
   const [settings, setSettings] = useState<CompanySettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { setSettings(getCompanySettings()); }, []);
+  useEffect(() => { fetchCompanySettings().then(setSettings); }, []);
 
   const update = (patch: Partial<CompanySettings>) => setSettings((p) => ({ ...p, ...patch }));
 
-  const onSave = (e: React.FormEvent) => {
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveCompanySettings(settings);
+    await saveCompanySettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };

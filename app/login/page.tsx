@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, Mail, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import Logo from '@/components/Logo';
-import { login, getSession } from '@/lib/auth';
+import { login, getSessionAsync } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,29 +16,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (s) {
-      router.replace(s.role === 'admin' ? '/admin' : '/dashboard');
-    }
+    getSessionAsync().then((s) => {
+      if (s) router.replace(s.role === 'admin' ? '/admin' : '/dashboard');
+    });
   }, [router]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const session = login(email.trim(), password, asAdmin);
-      if (!session) {
-        setError(
-          asAdmin
-            ? 'Identifiants admin invalides.'
-            : 'Email ou mot de passe incorrect.',
-        );
-        setLoading(false);
-        return;
-      }
-      router.push(session.role === 'admin' ? '/admin' : '/dashboard');
-    }, 400);
+    const session = await login(email.trim(), password, asAdmin);
+    if (!session) {
+      setError(asAdmin ? 'Identifiants admin invalides.' : 'Email ou mot de passe incorrect.');
+      setLoading(false);
+      return;
+    }
+    router.push(session.role === 'admin' ? '/admin' : '/dashboard');
   };
 
   return (

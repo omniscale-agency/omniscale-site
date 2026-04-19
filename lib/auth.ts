@@ -1,19 +1,7 @@
 'use client';
-
-// Auth mock pour MVP. À remplacer par Supabase / NextAuth en phase 2.
-// Les credentials sont en localStorage — visibles, donc PAS pour la prod réelle.
+import { supabaseBrowser } from './supabase/client';
 
 export type Role = 'admin' | 'client' | 'lead';
-
-export interface User {
-  email: string;
-  password: string;     // mock — never store plaintext in prod
-  name: string;
-  role: Role;
-  brand?: string;       // pour les leads/clients
-  clientSlug?: string;  // pour les clients (lié à un dossier de mockData)
-  createdAt: string;
-}
 
 export interface Session {
   email: string;
@@ -21,138 +9,192 @@ export interface Session {
   name: string;
   brand?: string;
   clientSlug?: string;
+  userId: string;
 }
 
-const SESSION_KEY = 'omniscale_session';
-const USERS_KEY = 'omniscale_users_v2';
-
-const SEED_USERS: User[] = [
-  { email: 'admin@omniscale.fr', password: 'admin2026', role: 'admin', name: 'Équipe Omniscale', createdAt: '2025-01-01T00:00:00.000Z' },
-  { email: 'lea@maisonlea.fr', password: 'demo2026', role: 'client', name: 'Léa Martin', clientSlug: 'maison-lea', brand: 'Maison Léa', createdAt: '2025-10-15T00:00:00.000Z' },
-  { email: 'marco@trattoriasole.fr', password: 'demo2026', role: 'client', name: 'Marco De Luca', clientSlug: 'trattoria-sole', brand: 'Trattoria Sole', createdAt: '2025-12-01T00:00:00.000Z' },
-  { email: 'camille@glowcosmetics.com', password: 'demo2026', role: 'client', name: 'Camille Roux', clientSlug: 'glow-cosmetics', brand: 'Glow Cosmetics', createdAt: '2026-01-20T00:00:00.000Z' },
-  { email: 'lead@example.com', password: 'lead2026', role: 'lead', name: 'Visiteur Démo', brand: 'Mon projet', createdAt: '2026-04-10T00:00:00.000Z' },
-];
-
-function readUsers(): User[] {
-  if (typeof window === 'undefined') return SEED_USERS;
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(SEED_USERS));
-    return SEED_USERS;
-  }
-  try { return JSON.parse(raw) as User[]; } catch { return SEED_USERS; }
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  brand?: string;
+  role: Role;
+  clientSlug?: string;
+  createdAt: string;
 }
 
-function writeUsers(users: User[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  window.dispatchEvent(new CustomEvent('omniscale-users-change'));
+// ============================================================
+// Sessions cache (évite refetch à chaque appel synchrone)
+// ============================================================
+let _cachedSession: Session | null = null;
+let _sessionLoadedAt = 0;
+const CACHE_MS = 30_000;
+
+async function loadSession(): Promise<Session | null> {
+  const sb = supabaseBrowser();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return null;
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  if (!profile) return null;
+  return {
+    userId: user.id,
+    email: profile.email,
+    name: profile.name,
+    brand: profile.brand || undefined,
+    role: profile.role as Role,
+    clientSlug: profile.client_slug || undefined,
+  };
 }
 
-export function listUsers(): User[] {
-  return readUsers();
+/** Récupère la session courante (async — préféré). */
+export async function getSessionAsync(): Promise<Session | null> {
+  if (_cachedSession && Date.now() - _sessionLoadedAt < CACHE_MS) return _cachedSession;
+  const s = await loadSession();
+  _cachedSession = s;
+  _sessionLoadedAt = Date.now();
+  return s;
 }
 
-export function login(email: string, password: string, asAdmin: boolean): Session | null {
-  const users = readUsers();
-  const u = users.find((a) => a.email.toLowerCase() === email.toLowerCase() && a.password === password);
-  if (!u) return null;
-  if (asAdmin && u.role !== 'admin') return null;
-  if (!asAdmin && u.role === 'admin') return null;
+/** Sync getter — retourne le cache, ou null si pas encore chargé. À utiliser après getSessionAsync. */
+export function getSession(): Session | null {
+  return _cachedSession;
+}
+
+export function clearSessionCache() {
+  _cachedSession = null;
+  _sessionLoadedAt = 0;
+}
+
+// ============================================================
+// AUTH ACTIONS
+// ============================================================
+
+export async function login(
+  email: string,
+  password: string,
+  asAdmin: boolean,
+): Promise<Session | null> {
+  const sb = supabaseBrowser();
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error || !data.user) return null;
+
+  // Charger profil pour vérifier le rôle
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+  if (!profile) { await sb.auth.signOut(); return null; }
+
+  // Cohérence du toggle admin
+  if (asAdmin && profile.role !== 'admin') { await sb.auth.signOut(); return null; }
+  if (!asAdmin && profile.role === 'admin') { await sb.auth.signOut(); return null; }
 
   const session: Session = {
-    email: u.email,
-    role: u.role,
-    name: u.name,
-    brand: u.brand,
-    clientSlug: u.clientSlug,
+    userId: data.user.id,
+    email: profile.email,
+    name: profile.name,
+    brand: profile.brand || undefined,
+    role: profile.role as Role,
+    clientSlug: profile.client_slug || undefined,
   };
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  }
+  _cachedSession = session;
+  _sessionLoadedAt = Date.now();
   return session;
 }
 
-export function register(input: { email: string; password: string; name: string; brand?: string }): { ok: true; session: Session } | { ok: false; error: string } {
-  const users = readUsers();
-  if (users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
-    return { ok: false, error: 'Un compte existe déjà avec cet email.' };
-  }
-  const newUser: User = {
-    email: input.email.trim(),
+export async function register(input: {
+  email: string;
+  password: string;
+  name: string;
+  brand?: string;
+}): Promise<{ ok: true; session: Session } | { ok: false; error: string }> {
+  const sb = supabaseBrowser();
+  const { data, error } = await sb.auth.signUp({
+    email: input.email,
     password: input.password,
-    name: input.name.trim(),
-    brand: input.brand?.trim() || undefined,
-    role: 'lead',  // tous les nouveaux comptes sont des leads jusqu'à ce qu'un admin les promeuve
-    createdAt: new Date().toISOString(),
-  };
-  writeUsers([...users, newUser]);
-  const session: Session = {
-    email: newUser.email,
-    role: newUser.role,
-    name: newUser.name,
-    brand: newUser.brand,
-  };
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    // marquer le nouveau user pour le tour d'onboarding
-    localStorage.setItem('omniscale_show_tour', '1');
+    options: { data: { name: input.name, brand: input.brand } },
+  });
+  if (error) return { ok: false, error: error.message };
+  if (!data.user) return { ok: false, error: 'Erreur de création du compte.' };
+
+  // Le trigger handle_new_user crée le profil auto. On le fetch (avec retry).
+  const userId = data.user.id;
+  let profile: any = null;
+  for (let i = 0; i < 5 && !profile; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    const res = await sb.from('profiles').select('*').eq('id', userId).single();
+    profile = res.data;
   }
+  if (!profile) return { ok: false, error: 'Profil non créé. Réessaie dans un instant.' };
+
+  if (typeof window !== 'undefined') localStorage.setItem('omniscale_show_tour', '1');
+
+  const session: Session = {
+    userId: data.user.id,
+    email: profile.email,
+    name: profile.name,
+    brand: profile.brand || undefined,
+    role: profile.role as Role,
+    clientSlug: profile.client_slug || undefined,
+  };
+  _cachedSession = session;
+  _sessionLoadedAt = Date.now();
   return { ok: true, session };
 }
 
-/** Update role / clientSlug (admin only). */
-export function updateUser(email: string, patch: Partial<Omit<User, 'email' | 'createdAt'>>) {
-  const users = readUsers();
-  writeUsers(users.map((u) => (u.email === email ? { ...u, ...patch } : u)));
-  // si l'utilisateur changé est l'utilisateur courant, refresh session
-  const s = getSession();
-  if (s && s.email === email) {
-    const updated = readUsers().find((u) => u.email === email);
-    if (updated) {
-      const newSession: Session = {
-        email: updated.email,
-        role: updated.role,
-        name: updated.name,
-        brand: updated.brand,
-        clientSlug: updated.clientSlug,
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(newSession));
-    }
-  }
+export async function logout() {
+  const sb = supabaseBrowser();
+  await sb.auth.signOut();
+  clearSessionCache();
 }
 
-export function deleteUser(email: string) {
-  const users = readUsers();
-  writeUsers(users.filter((u) => u.email !== email));
+// ============================================================
+// USERS MANAGEMENT (admin only — RLS gate)
+// ============================================================
+
+export async function listUsers(): Promise<User[]> {
+  const sb = supabaseBrowser();
+  const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map((p) => ({
+    id: p.id,
+    email: p.email,
+    name: p.name,
+    brand: p.brand || undefined,
+    role: p.role as Role,
+    clientSlug: p.client_slug || undefined,
+    createdAt: p.created_at,
+  }));
 }
 
-export function logout() {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(SESSION_KEY);
-  }
+export async function updateUser(
+  email: string,
+  patch: Partial<{ role: Role; clientSlug?: string; name: string; brand: string }>,
+) {
+  const sb = supabaseBrowser();
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.role) dbPatch.role = patch.role;
+  if ('clientSlug' in patch) dbPatch.client_slug = patch.clientSlug || null;
+  if (patch.name) dbPatch.name = patch.name;
+  if (patch.brand) dbPatch.brand = patch.brand;
+  await sb.from('profiles').update(dbPatch).eq('email', email);
+  // Si l'utilisateur courant est modifié, refresh cache
+  const cur = getSession();
+  if (cur && cur.email === email) await getSessionAsync();
 }
 
-export function getSession(): Session | null {
-  if (typeof window === 'undefined') return null;
-  const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return null;
-  try { return JSON.parse(raw) as Session; } catch { return null; }
+export async function deleteUser(email: string) {
+  const sb = supabaseBrowser();
+  // Supprime juste le profil (l'auth user est conservé en BDD Supabase Auth — pour le purger faut la service_role key)
+  await sb.from('profiles').delete().eq('email', email);
 }
 
 export function subscribeUsers(cb: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const h = () => cb();
-  window.addEventListener('omniscale-users-change', h);
-  window.addEventListener('storage', h);
-  return () => {
-    window.removeEventListener('omniscale-users-change', h);
-    window.removeEventListener('storage', h);
-  };
+  const sb = supabaseBrowser();
+  const channel = sb
+    .channel('profiles-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => cb())
+    .subscribe();
+  return () => { sb.removeChannel(channel); };
 }
 
-// Helper pour gates sur les pages
+// Helper pour les pages
 export function requireRole(session: Session | null, allowed: Role[]): boolean {
   if (!session) return false;
   return allowed.includes(session.role);

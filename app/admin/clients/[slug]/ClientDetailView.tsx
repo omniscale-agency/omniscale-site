@@ -6,23 +6,26 @@ import {
   Mail, Phone, Sparkles,
 } from 'lucide-react';
 import { getClientBySlug, ClientData, formatNumber, formatCurrency } from '@/lib/mockData';
-import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
+import { fetchTodos, fetchEvents, subscribeClientChanges } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import SendActionsBar from '@/components/admin/SendActionsBar';
 
 export default function ClientDetailView({ slug }: { slug: string }) {
   const [client, setClient] = useState<ClientData | null>(null);
-  const [extras, setExtras] = useState({ todos: [] as ClientData['todos'], events: [] as ClientData['upcomingEvents'] });
+  const [extras, setExtras] = useState<{ todos: any[]; events: any[] }>({ todos: [], events: [] });
 
   useEffect(() => {
     setClient(getClientBySlug(slug) || null);
   }, [slug]);
 
   useEffect(() => {
-    const refresh = () => setExtras({ todos: getExtraTodos(slug), events: getExtraEvents(slug) });
+    const refresh = async () => {
+      const [todos, events] = await Promise.all([fetchTodos(slug), fetchEvents(slug)]);
+      setExtras({ todos, events });
+    };
     refresh();
-    return subscribe(refresh);
+    return subscribeClientChanges(slug, refresh);
   }, [slug]);
 
   if (!client) {

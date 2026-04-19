@@ -1,4 +1,5 @@
 'use client';
+import { supabaseBrowser } from './supabase/client';
 
 export type Platform = 'instagram' | 'tiktok' | 'youtube';
 
@@ -7,49 +8,51 @@ export interface Connection {
   username: string;
   connectedAt: string;
   followers: number;
-  // Champs ajoutés au moment du "vrai" OAuth en phase 2 :
-  accessToken?: string;
-  refreshToken?: string;
 }
 
-const KEY = (email: string) => `omniscale_connections_${email}`;
-
-export function getConnections(email: string): Connection[] {
-  if (typeof window === 'undefined') return [];
-  const raw = localStorage.getItem(KEY(email));
-  if (!raw) return [];
-  try { return JSON.parse(raw) as Connection[]; } catch { return []; }
+function fromDB(r: any): Connection {
+  return {
+    platform: r.platform,
+    username: r.username,
+    followers: r.followers || 0,
+    connectedAt: r.connected_at,
+  };
 }
 
-export function setConnections(email: string, connections: Connection[]) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY(email), JSON.stringify(connections));
-  window.dispatchEvent(new CustomEvent('omniscale-connections-change'));
+export async function getConnections(_email?: string): Promise<Connection[]> {
+  // Le RLS limite déjà aux connexions de l'utilisateur courant
+  const sb = supabaseBrowser();
+  const { data } = await sb.from('connections').select('*').order('connected_at', { ascending: false });
+  return (data || []).map(fromDB);
 }
 
-export function connectPlatform(email: string, platform: Platform, username: string, followers: number) {
-  const existing = getConnections(email);
-  const filtered = existing.filter((c) => c.platform !== platform);
-  setConnections(email, [...filtered, {
+export async function connectPlatform(_email: string, platform: Platform, username: string, followers: number) {
+  const sb = supabaseBrowser();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  await sb.from('connections').upsert({
+    user_id: user.id,
     platform,
     username: username.replace('@', ''),
     followers,
-    connectedAt: new Date().toISOString(),
-  }]);
+    connected_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,platform' });
 }
 
-export function disconnectPlatform(email: string, platform: Platform) {
-  const existing = getConnections(email);
-  setConnections(email, existing.filter((c) => c.platform !== platform));
+export async function disconnectPlatform(_email: string, platform: Platform) {
+  const sb = supabaseBrowser();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  await sb.from('connections').delete()
+    .eq('user_id', user.id)
+    .eq('platform', platform);
 }
 
 export function subscribeConnections(cb: () => void): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const h = () => cb();
-  window.addEventListener('omniscale-connections-change', h);
-  window.addEventListener('storage', h);
-  return () => {
-    window.removeEventListener('omniscale-connections-change', h);
-    window.removeEventListener('storage', h);
-  };
+  const sb = supabaseBrowser();
+  const ch = sb
+    .channel('connections-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => cb())
+    .subscribe();
+  return () => { sb.removeChannel(ch); };
 }

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Building2, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
 import Logo from '@/components/Logo';
-import { register, getSession } from '@/lib/auth';
+import { register, getSessionAsync } from '@/lib/auth';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,20 +17,19 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (s) router.replace(s.role === 'admin' ? '/admin' : '/dashboard');
+    getSessionAsync().then((s) => {
+      if (s) router.replace(s.role === 'admin' ? '/admin' : '/dashboard');
+    });
   }, [router]);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (password.length < 6) { setError('Mot de passe trop court (6 caractères min).'); return; }
     setLoading(true);
-    setTimeout(() => {
-      const result = register({ email: email.trim(), password, name: name.trim(), brand: brand.trim() || undefined });
-      if (result.ok === false) { setError(result.error); setLoading(false); return; }
-      router.push('/dashboard');
-    }, 400);
+    const result = await register({ email: email.trim(), password, name: name.trim(), brand: brand.trim() || undefined });
+    if (result.ok === false) { setError(result.error); setLoading(false); return; }
+    router.push('/dashboard');
   };
 
   return (

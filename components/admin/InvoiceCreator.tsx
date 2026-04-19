@@ -53,41 +53,35 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
     type,
   });
 
-  const handlePreview = () => {
-    const doc = createInvoice(buildDoc());
+  const handlePreview = async () => {
+    const doc = await createInvoice(buildDoc());
     setCreatedId(doc.id);
     const { blob } = generateInvoicePDF(doc);
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!createdId) {
-      const doc = createInvoice(buildDoc());
+      const doc = await createInvoice(buildDoc());
       setCreatedId(doc.id);
       downloadPDF(doc);
     } else {
-      // recharger le doc puis download
       const doc = { ...buildDoc(), id: createdId };
       downloadPDF(doc);
     }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     setSending(true);
-    let doc: ReturnType<typeof createInvoice>;
     if (createdId) {
-      doc = { ...buildDoc(), id: createdId } as any;
-      updateInvoice(createdId, { status: 'sent', sentAt: new Date().toISOString() });
+      await updateInvoice(createdId, { status: 'sent', sentAt: new Date().toISOString() });
     } else {
-      doc = createInvoice({ ...buildDoc(), status: 'sent', sentAt: new Date().toISOString() });
+      await createInvoice({ ...buildDoc(), status: 'sent', sentAt: new Date().toISOString() });
     }
-    setTimeout(() => {
-      setSending(false);
-      onSent?.();
-      onClose();
-    }, 700);
-    void doc;
+    setSending(false);
+    onSent?.();
+    onClose();
   };
 
   const reset = () => {

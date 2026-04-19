@@ -1,18 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Target, Trophy } from 'lucide-react';
-import { getSession, Session } from '@/lib/auth';
+import { getSessionAsync, Session } from '@/lib/auth';
 import { CLIENTS, ClientData, getClientBySlug, formatCurrency } from '@/lib/mockData';
 import RoleGate from '@/components/RoleGate';
 
 export default function ObjectivesPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
+
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setSession(s);
-    setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
+    getSessionAsync().then((s) => {
+      if (!s) return;
+      setSession(s);
+      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
+    });
   }, []);
 
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
@@ -46,10 +48,7 @@ export default function ObjectivesPage() {
                 <span className="text-white/40"> / {o.unit === '€' ? formatCurrency(o.target) : `${o.target}${o.unit}`}</span>
               </div>
               <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${reached ? 'bg-green-400' : 'bg-gradient-to-r from-lilac to-omni-400'}`}
-                  style={{ width: `${pct}%` }}
-                />
+                <div className={`h-full rounded-full transition-all ${reached ? 'bg-green-400' : 'bg-gradient-to-r from-lilac to-omni-400'}`} style={{ width: `${pct}%` }} />
               </div>
             </div>
           );

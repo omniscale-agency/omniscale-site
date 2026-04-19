@@ -4,11 +4,11 @@ import {
   Eye, Users, TrendingUp, Heart, Sparkles, Calendar, CheckSquare,
   Video as VideoIcon, Target, Clock, Activity, ArrowUpRight, BadgePlus,
 } from 'lucide-react';
-import { getSession, Session } from '@/lib/auth';
+import { getSessionAsync, Session } from '@/lib/auth';
 import RoleGate from '@/components/RoleGate';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
 import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
-import { getExtraTodos, getExtraEvents, subscribe } from '@/lib/sharedStore';
+import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/lib/sharedStore';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import RangePicker from '@/components/dashboard/RangePicker';
@@ -45,27 +45,29 @@ export default function ClientDashboard() {
   const [client, setClient] = useState<ClientData | null>(null);
   const [range, setRange] = useState<Exclude<RangeKey, 'custom'>>('30d');
   const [compare, setCompare] = useState(false);
-  const [extras, setExtras] = useState({ todos: [] as ClientData['todos'], events: [] as ClientData['upcomingEvents'] });
+  const [extraTodos, setExtraTodos] = useState<Todo[]>([]);
+  const [extraEvents, setExtraEvents] = useState<Event[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (!s) return;
-    setSession(s);
-    const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
-    setClient(c || CLIENTS[0]);
+    getSessionAsync().then((s) => {
+      if (!s) return;
+      setSession(s);
+      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
+      setClient(c || CLIENTS[0]);
+      setLoaded(true);
+    });
   }, []);
 
-  // Sync les extras (admin → client) en temps réel
   useEffect(() => {
     if (!client) return;
-    const refresh = () => {
-      setExtras({
-        todos: getExtraTodos(client.slug),
-        events: getExtraEvents(client.slug),
-      });
+    const refresh = async () => {
+      const [t, e] = await Promise.all([fetchTodos(client.slug), fetchEvents(client.slug)]);
+      setExtraTodos(t);
+      setExtraEvents(e);
     };
     refresh();
-    return subscribe(refresh);
+    return subscribeClientChanges(client.slug, refresh);
   }, [client]);
 
   const series = useMemo(() => {
@@ -73,25 +75,20 @@ export default function ClientDashboard() {
     return compare ? generateWithCompare(client.slug, range) : generateSeries(client.slug, range);
   }, [client, range, compare]);
 
-  if (!session || !client) {
+  if (!loaded || !session || !client) {
     return <div className="p-12 text-white/60">Chargement…</div>;
   }
 
-  // Lockdown : leads voient un écran d'invitation à devenir client
   if (session.role === 'lead') {
     return (
-      <RoleGate
-        userRole={session.role}
-        allowed={['client', 'admin']}
-        feature="Tableau de bord performance"
-      >
+      <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Tableau de bord performance">
         <></>
       </RoleGate>
     );
   }
 
-  const allTodos = [...extras.todos, ...client.todos];
-  const allEvents = [...extras.events, ...client.upcomingEvents].sort(
+  const allTodos = [...extraTodos, ...client.todos];
+  const allEvents = [...extraEvents, ...client.upcomingEvents].sort(
     (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
   );
   const todosOpen = allTodos.filter((t) => !t.done);
@@ -102,74 +99,41 @@ export default function ClientDashboard() {
   const adSpend = sumSeries(series, 'adSpend');
   const roas = adSpend > 0 ? adRevenue / adSpend : 0;
 
+  const isFromDB = (id: string) => !id.match(/^t\d+$|^e\d+$/); // les IDs de mockData sont t1, e1...
+
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-widest text-lilac mb-2">Espace client · {client.brand}</div>
           <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
             Salut <span className="text-gradient">{session.name.split(' ')[0]}</span> 👋
           </h1>
-          <p className="text-white/60 mt-2">
-            Récap de tes performances — sélectionne la période ci-dessous.
-          </p>
+          <p className="text-white/60 mt-2">Récap de tes performances — sélectionne la période ci-dessous.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <RangePicker value={range} onChange={setRange} compare={compare} onCompareToggle={setCompare} />
-          <span className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
-            ● Compte actif
-          </span>
+          <span className="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-sm">● Compte actif</span>
         </div>
       </div>
 
-      {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label={`Vues sur la période`}
-          value={formatNumber(totalViews)}
-          delta={viewsDelta}
-          icon={Eye}
-          accent="lilac"
-        />
-        <StatCard
-          label="Abonnés gagnés"
-          value={`+${formatNumber(client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained)}`}
-          delta={18}
-          icon={Users}
-          accent="green"
-        />
-        <StatCard
-          label="ROAS Meta"
-          value={`x${roas.toFixed(1)}`}
-          delta={deltaPct(series, 'adRevenue')}
-          icon={TrendingUp}
-          accent="amber"
-        />
-        <StatCard
-          label="Engagement moyen"
-          value={`${client.stats.engagementRate}%`}
-          delta={3}
-          icon={Heart}
-          accent="pink"
-        />
+        <StatCard label="Vues sur la période" value={formatNumber(totalViews)} delta={viewsDelta} icon={Eye} accent="lilac" />
+        <StatCard label="Abonnés gagnés" value={`+${formatNumber(client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained)}`} delta={18} icon={Users} accent="green" />
+        <StatCard label="ROAS Meta" value={`x${roas.toFixed(1)}`} delta={deltaPct(series, 'adRevenue')} icon={TrendingUp} accent="amber" />
+        <StatCard label="Engagement moyen" value={`${client.stats.engagementRate}%`} delta={3} icon={Heart} accent="pink" />
       </div>
 
-      {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AreaChartCard
-          title="Vues totales"
-          icon={Eye}
-          data={series}
+          title="Vues totales" icon={Eye} data={series}
           series={[{ key: 'views', label: 'Vues', color: '#B794E8' }]}
           compareKey={compare ? 'prevViews' : undefined}
           total={formatNumber(totalViews)}
           delta={compare ? compareDelta(series, 'views', 'prevViews') : viewsDelta}
         />
         <StackedAreaChartCard
-          title="Abonnés par plateforme"
-          icon={Users}
-          data={series}
+          title="Abonnés par plateforme" icon={Users} data={series}
           series={[
             { key: 'followersTiktok', label: 'TikTok', color: '#22d3ee' },
             { key: 'followersInstagram', label: 'Instagram', color: '#ec4899' },
@@ -179,9 +143,7 @@ export default function ClientDashboard() {
           delta={deltaPct(series, 'followers')}
         />
         <AreaChartCard
-          title="Performance pub Meta"
-          icon={Sparkles}
-          data={series}
+          title="Performance pub Meta" icon={Sparkles} data={series}
           series={[
             { key: 'adRevenue', label: 'CA généré', color: '#fbbf24' },
             { key: 'adSpend', label: 'Dépensé', color: '#f87171' },
@@ -193,18 +155,14 @@ export default function ClientDashboard() {
           formatY={(v) => formatCurrency(v).replace('€', '€')}
         />
         <AreaChartCard
-          title="Taux d'engagement"
-          icon={Heart}
-          data={series}
+          title="Taux d'engagement" icon={Heart} data={series}
           series={[{ key: 'engagement', label: 'Engagement', color: '#ec4899' }]}
           compareKey={compare ? 'prevEngagement' : undefined}
-          total={`${client.stats.engagementRate}%`}
-          delta={3}
+          total={`${client.stats.engagementRate}%`} delta={3}
           formatY={(v) => `${v}%`}
         />
       </div>
 
-      {/* Plateformes détaillées */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-fuchsia-500/10 to-orange-500/5 p-5">
           <div className="flex items-center justify-between mb-3">
@@ -214,7 +172,6 @@ export default function ClientDashboard() {
           <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.instagramViews)} vues</div>
           <div className="text-sm text-white/60">{formatNumber(client.stats.instagramFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.instagramFollowersGained)}</span></div>
         </div>
-
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-400/10 to-pink-500/5 p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">TikTok</div>
@@ -223,7 +180,6 @@ export default function ClientDashboard() {
           <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.tiktokViews)} vues</div>
           <div className="text-sm text-white/60">{formatNumber(client.stats.tiktokFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.tiktokFollowersGained)}</span></div>
         </div>
-
         <div className="rounded-2xl border border-lilac/20 bg-lilac/5 p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">Pub Meta</div>
@@ -235,7 +191,6 @@ export default function ClientDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        {/* Objectifs */}
         <Card title="Objectifs en cours" icon={Target} className="lg:col-span-2">
           <div className="space-y-5">
             {client.objectives.map((o) => {
@@ -250,10 +205,7 @@ export default function ClientDashboard() {
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400 transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400 transition-all" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="text-xs text-white/40 mt-1">{pct}% atteint</div>
                 </div>
@@ -262,24 +214,15 @@ export default function ClientDashboard() {
           </div>
         </Card>
 
-        {/* Tâches */}
-        <Card
-          title="Tâches en cours"
-          icon={CheckSquare}
-          subtitle={`${todosOpen.length} en attente`}
-          action={
-            <a href="/dashboard/todos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">
-              Tout voir <ArrowUpRight size={12} />
-            </a>
-          }
-        >
+        <Card title="Tâches en cours" icon={CheckSquare} subtitle={`${todosOpen.length} en attente`}
+          action={<a href="/dashboard/todos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Tout voir <ArrowUpRight size={12} /></a>}>
           <ul className="space-y-3">
             {todosOpen.slice(0, 4).map((t) => (
               <li key={t.id} className="flex items-start gap-3">
                 <div className="w-4 h-4 rounded border border-white/30 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm flex items-start gap-2">
-                    {t.id.startsWith('admin-') && (
+                    {isFromDB(t.id) && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac font-semibold uppercase shrink-0 mt-0.5">
                         <BadgePlus size={10} className="inline mr-0.5" /> Nouveau
                       </span>
@@ -295,14 +238,11 @@ export default function ClientDashboard() {
                 </div>
               </li>
             ))}
-            {todosOpen.length === 0 && (
-              <li className="text-sm text-white/50 italic">Aucune tâche en attente 🎉</li>
-            )}
+            {todosOpen.length === 0 && <li className="text-sm text-white/50 italic">Aucune tâche en attente 🎉</li>}
           </ul>
         </Card>
       </div>
 
-      {/* Activity + Calendar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <Card title="Activité récente" icon={Activity} className="lg:col-span-2">
           <ol className="relative space-y-5 ml-3 border-l border-white/10 pl-5">
@@ -316,16 +256,8 @@ export default function ClientDashboard() {
           </ol>
         </Card>
 
-        <Card
-          title="Prochains RDV"
-          icon={Calendar}
-          subtitle="Synchro Google Calendar"
-          action={
-            <a href="/dashboard/calendar" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">
-              Agenda <ArrowUpRight size={12} />
-            </a>
-          }
-        >
+        <Card title="Prochains RDV" icon={Calendar} subtitle="Synchro Google Calendar"
+          action={<a href="/dashboard/calendar" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Agenda <ArrowUpRight size={12} /></a>}>
           <ul className="space-y-3">
             {allEvents.slice(0, 4).map((e) => {
               const d = eventDate(e.startsAt);
@@ -337,9 +269,7 @@ export default function ClientDashboard() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate flex items-center gap-2">
-                      {e.id.startsWith('admin-') && (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Nouveau</span>
-                      )}
+                      {isFromDB(e.id) && (<span className="text-[9px] px-1 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Nouveau</span>)}
                       <span>{e.title}</span>
                     </div>
                     <div className="text-xs text-white/50 mt-0.5">{d.time} · {e.duration} min</div>
@@ -352,31 +282,19 @@ export default function ClientDashboard() {
         </Card>
       </div>
 
-      {/* Vidéos publiées */}
-      <Card
-        title="Vidéos récentes"
-        icon={VideoIcon}
+      <Card title="Vidéos récentes" icon={VideoIcon}
         subtitle={`${client.videos.length} publiées sur les 30 derniers jours`}
-        action={
-          <a href="/dashboard/videos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">
-            Tout voir <ArrowUpRight size={12} />
-          </a>
-        }
-      >
+        action={<a href="/dashboard/videos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Tout voir <ArrowUpRight size={12} /></a>}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {client.videos.slice(0, 6).map((v) => (
             <div key={v.id} className="group relative aspect-[9/16] rounded-xl overflow-hidden border border-white/10">
               <div className={`absolute inset-0 bg-gradient-to-br ${PLATFORM_COLORS[v.platform]} opacity-30`} />
               <div className="absolute inset-0 placeholder-shimmer opacity-20" />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent" />
-              <div className="absolute top-2 left-2 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/50 backdrop-blur">
-                {v.platform}
-              </div>
+              <div className="absolute top-2 left-2 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/50 backdrop-blur">{v.platform}</div>
               <div className="absolute bottom-0 left-0 right-0 p-2.5">
                 <div className="text-[11px] font-medium leading-tight line-clamp-2 mb-1">{v.title}</div>
-                <div className="text-[10px] text-white/70 flex items-center gap-1.5">
-                  <Eye size={10} /> {formatNumber(v.views)}
-                </div>
+                <div className="text-[10px] text-white/70 flex items-center gap-1.5"><Eye size={10} /> {formatNumber(v.views)}</div>
               </div>
             </div>
           ))}
