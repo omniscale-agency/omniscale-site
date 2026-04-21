@@ -52,10 +52,12 @@ function ConnectionsInner() {
     const error = params.get('error');
     if (connected) {
       setToast({ type: 'ok', msg: `Compte ${connected} connecté avec succès !` });
+      import('@/lib/analytics').then(({ capture }) => capture('social_connected', { platform: connected }));
       // nettoie l'URL
       window.history.replaceState({}, '', '/dashboard/connections');
     } else if (error) {
       setToast({ type: 'err', msg: `Erreur OAuth : ${decodeURIComponent(error)}` });
+      import('@/lib/analytics').then(({ capture }) => capture('social_connect_failed', { error }));
       window.history.replaceState({}, '', '/dashboard/connections');
     }
     if (connected || error) {

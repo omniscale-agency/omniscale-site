@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { PostHogProvider } from '@/components/PostHogProvider';
 
 export const metadata: Metadata = {
   title: 'Omniscale — Agence marketing pour scaler vos commerces & e-commerce',
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="noise bg-black">{children}</body>
+      <body className="noise bg-black">
+        <PostHogProvider>{children}</PostHogProvider>
+      </body>
     </html>
   );
 }

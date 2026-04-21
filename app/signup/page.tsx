@@ -7,6 +7,7 @@ import Logo from '@/components/Logo';
 import { register, getSessionAsync } from '@/lib/auth';
 import { sendEmail } from '@/lib/sendEmail';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
+import { capture, identify } from '@/lib/analytics';
 
 const SECTORS = [
   'Boutique de mode / Prêt-à-porter',
@@ -81,6 +82,26 @@ export default function SignupPage() {
       website: website.trim() || undefined,
     });
     if (result.ok === false) { setError(result.error); setLoading(false); return; }
+
+    // Analytics : identifie + capture le signup
+    if (result.session?.userId) {
+      identify(result.session.userId, {
+        email: email.trim(),
+        name: name.trim(),
+        brand: brand.trim() || undefined,
+        sector: sector || undefined,
+        city: city.trim() || undefined,
+        monthly_revenue: monthlyRevenue || undefined,
+      });
+    }
+    capture('lead_signup', {
+      method: 'email',
+      brand: brand.trim() || undefined,
+      sector: sector || undefined,
+      city: city.trim() || undefined,
+      monthly_revenue: monthlyRevenue || undefined,
+      has_website: !!website.trim(),
+    });
 
     // Fire-and-forget : welcome email au lead + notif admin
     const welcomeData = { name: name.trim() };
