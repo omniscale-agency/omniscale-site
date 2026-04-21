@@ -6,6 +6,8 @@ import { Calendar, Clock, CheckCircle2, Video, Mail, Play, Youtube } from 'lucid
 import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
+import { capture } from '@/lib/analytics';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 function formatDate(iso: string) {
   if (!iso) return { date: '', time: '' };
@@ -79,6 +81,52 @@ function ConfirmationContent() {
   const start = sp.get('event_start_time') || '';
   const end = sp.get('event_end_time') || '';
   const closer = sp.get('assigned_to') || '';
+  const phone = sp.get('invitee_phone') || '';
+  const bookingId = sp.get('booking_id') || sp.get('id') || sp.get('event_uuid') || '';
+
+  // Tracking : à l'arrivée sur /confirmation, on capture l'event PostHog + on upsert dans bookings.
+  // C'est notre substitut au webhook iClosed (plan free n'expose pas de webhook server-to-server).
+  useEffect(() => {
+    if (!mounted) return;
+    if (!email && !start) return; // pas un vrai retour iClosed (juste une visite directe)
+
+    // PostHog event
+    capture('iclosed_booking_confirmed', {
+      invitee_email: email,
+      invitee_name: fullName,
+      event_name: eventName,
+      scheduled_at: start,
+      closer,
+      utm_source: sp.get('utm_source') || undefined,
+      utm_medium: sp.get('utm_medium') || undefined,
+      utm_campaign: sp.get('utm_campaign') || undefined,
+    });
+
+    // Upsert en BDD (anon insert OK via policy)
+    const sb = supabaseBrowser();
+    void sb.from('bookings').upsert(
+      {
+        external_id: bookingId || `confirmation-${email}-${start}`,
+        source: 'iclosed',
+        event: 'scheduled',
+        invitee_name: fullName || null,
+        invitee_email: email || null,
+        invitee_phone: phone || null,
+        scheduled_at: start ? new Date(start).toISOString() : null,
+        duration_minutes: durationMinutes(start, end),
+        closer: closer || null,
+        utm_source: sp.get('utm_source'),
+        utm_medium: sp.get('utm_medium'),
+        utm_campaign: sp.get('utm_campaign'),
+        utm_term: sp.get('utm_term'),
+        utm_content: sp.get('utm_content'),
+        referrer: typeof document !== 'undefined' ? document.referrer : null,
+        raw: Object.fromEntries(sp.entries()),
+        received_at: new Date().toISOString(),
+      },
+      { onConflict: 'external_id' },
+    );
+  }, [mounted, email, start, end, fullName, eventName, closer, phone, bookingId, sp]);
 
   const { date, time } = formatDate(start);
   const dur = durationMinutes(start, end);
