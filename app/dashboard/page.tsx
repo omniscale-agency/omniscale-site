@@ -9,6 +9,7 @@ import RoleGate from '@/components/RoleGate';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
 import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
 import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/lib/sharedStore';
+import { fetchRealSocialData, RealSocialData } from '@/lib/socialReal';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import RangePicker from '@/components/dashboard/RangePicker';
@@ -47,16 +48,20 @@ export default function ClientDashboard() {
   const [compare, setCompare] = useState(false);
   const [extraTodos, setExtraTodos] = useState<Todo[]>([]);
   const [extraEvents, setExtraEvents] = useState<Event[]>([]);
+  const [real, setReal] = useState<RealSocialData>({ connections: {}, videos: [] });
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    getSessionAsync().then((s) => {
+    getSessionAsync().then(async (s) => {
       if (!s) return;
       setSession(s);
       // Si l'admin a mappé l'utilisateur à un dossier mockData → on charge les données démo
       // Sinon → on reste sans `client` et on affiche l'état "onboarding"
       const c = s.clientSlug ? getClientBySlug(s.clientSlug) : null;
       setClient(c || null);
+      // Charge les vraies données sociales en parallèle
+      const realData = await fetchRealSocialData();
+      setReal(realData);
       setLoaded(true);
     });
   }, []);
@@ -175,6 +180,16 @@ export default function ClientDashboard() {
 
   const isFromDB = (id: string) => !id.match(/^t\d+$|^e\d+$/); // les IDs de mockData sont t1, e1...
 
+  // === Données sociales réelles (override les mocks pour les plateformes connectées) ===
+  const igReal = real.connections.instagram;
+  const ttReal = real.connections.tiktok;
+  const ytReal = real.connections.youtube;
+  const igFollowers = igReal?.followers ?? client.stats.instagramFollowers;
+  const igViews = igReal?.metrics?.totalViews ?? client.stats.instagramViews;
+  const ttFollowers = ttReal?.followers ?? client.stats.tiktokFollowers;
+  const ttViews = ttReal?.metrics?.totalViews ?? client.stats.tiktokViews;
+  const realVideos = real.videos; // Si non-vide, override les vidéos mock
+
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -237,23 +252,44 @@ export default function ClientDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+      <div className={`grid grid-cols-1 ${ytReal ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-10`}>
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-fuchsia-500/10 to-orange-500/5 p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">Instagram</div>
+            <div className="text-xs uppercase tracking-widest text-white/60 font-semibold inline-flex items-center gap-1.5">Instagram {igReal && <LiveBadge />}</div>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-orange-500 flex items-center justify-center text-xs font-bold">IG</div>
           </div>
-          <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.instagramViews)} vues</div>
-          <div className="text-sm text-white/60">{formatNumber(client.stats.instagramFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.instagramFollowersGained)}</span></div>
+          <div className="font-display text-2xl font-bold mb-1">{formatNumber(igViews)} vues</div>
+          <div className="text-sm text-white/60">
+            {formatNumber(igFollowers)} abonnés
+            {!igReal && <span className="text-green-400"> +{formatNumber(client.stats.instagramFollowersGained)}</span>}
+            {igReal && <span className="text-white/40"> · @{igReal.username}</span>}
+          </div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-cyan-400/10 to-pink-500/5 p-5">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">TikTok</div>
+            <div className="text-xs uppercase tracking-widest text-white/60 font-semibold inline-flex items-center gap-1.5">TikTok {ttReal && <LiveBadge />}</div>
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-pink-500 flex items-center justify-center text-xs font-bold">TT</div>
           </div>
-          <div className="font-display text-2xl font-bold mb-1">{formatNumber(client.stats.tiktokViews)} vues</div>
-          <div className="text-sm text-white/60">{formatNumber(client.stats.tiktokFollowers)} abonnés <span className="text-green-400">+{formatNumber(client.stats.tiktokFollowersGained)}</span></div>
+          <div className="font-display text-2xl font-bold mb-1">{formatNumber(ttViews)} vues</div>
+          <div className="text-sm text-white/60">
+            {formatNumber(ttFollowers)} abonnés
+            {!ttReal && <span className="text-green-400"> +{formatNumber(client.stats.tiktokFollowersGained)}</span>}
+            {ttReal && <span className="text-white/40"> · @{ttReal.username}</span>}
+          </div>
         </div>
+        {ytReal && (
+          <div className="rounded-2xl border border-red-500/20 bg-gradient-to-br from-red-600/10 to-red-800/5 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs uppercase tracking-widest text-white/60 font-semibold inline-flex items-center gap-1.5">YouTube <LiveBadge /></div>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-xs font-bold">YT</div>
+            </div>
+            <div className="font-display text-2xl font-bold mb-1">{formatNumber(ytReal.metrics?.totalViews || 0)} vues</div>
+            <div className="text-sm text-white/60">
+              {formatNumber(ytReal.followers)} abonnés
+              <span className="text-white/40"> · {ytReal.username}</span>
+            </div>
+          </div>
+        )}
         <div className="rounded-2xl border border-lilac/20 bg-lilac/5 p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs uppercase tracking-widest text-white/60 font-semibold">Pub Meta</div>
@@ -357,23 +393,50 @@ export default function ClientDashboard() {
       </div>
 
       <Card title="Vidéos récentes" icon={VideoIcon}
-        subtitle={`${client.videos.length} publiées sur les 30 derniers jours`}
+        subtitle={realVideos.length > 0 ? `${realVideos.length} importées (live API)` : `${client.videos.length} publiées sur les 30 derniers jours`}
         action={<a href="/dashboard/videos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Tout voir <ArrowUpRight size={12} /></a>}>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {client.videos.slice(0, 6).map((v) => (
-            <div key={v.id} className="group relative aspect-[9/16] rounded-xl overflow-hidden border border-white/10">
-              <div className={`absolute inset-0 bg-gradient-to-br ${PLATFORM_COLORS[v.platform]} opacity-30`} />
-              <div className="absolute inset-0 placeholder-shimmer opacity-20" />
+          {(realVideos.length > 0 ? realVideos.slice(0, 6).map(v => ({
+              id: v.id, title: v.title, platform: v.platform, views: v.views, thumb: v.thumbnailUrl, link: v.permalink,
+            })) : client.videos.slice(0, 6).map(v => ({
+              id: v.id, title: v.title, platform: v.platform, views: v.views, thumb: undefined, link: undefined,
+            }))
+          ).map((v) => (
+            <a
+              key={v.id}
+              href={v.link || '#'}
+              target={v.link ? '_blank' : undefined}
+              rel={v.link ? 'noopener noreferrer' : undefined}
+              className="group relative aspect-[9/16] rounded-xl overflow-hidden border border-white/10 block"
+            >
+              {v.thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={v.thumb} alt={v.title} className="absolute inset-0 w-full h-full object-cover" />
+              ) : (
+                <>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${PLATFORM_COLORS[v.platform]} opacity-30`} />
+                  <div className="absolute inset-0 placeholder-shimmer opacity-20" />
+                </>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent" />
               <div className="absolute top-2 left-2 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-black/50 backdrop-blur">{v.platform}</div>
               <div className="absolute bottom-0 left-0 right-0 p-2.5">
                 <div className="text-[11px] font-medium leading-tight line-clamp-2 mb-1">{v.title}</div>
                 <div className="text-[10px] text-white/70 flex items-center gap-1.5"><Eye size={10} /> {formatNumber(v.views)}</div>
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </Card>
     </main>
+  );
+}
+
+function LiveBadge() {
+  return (
+    <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 border border-green-500/40 font-semibold">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      Live
+    </span>
   );
 }
