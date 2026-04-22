@@ -16,8 +16,8 @@ const VIDEOS: Array<VideoTestimonial | null> = [
   {
     src: '/videos/testimonials/1.mp4',
     poster: '/videos/testimonials/1-poster.jpg',
-    name: 'French Retailers',
-    role: 'Boutique de mode • Avignon',
+    name: 'Philippe',
+    role: 'Boutique de mode • Lyon',
     result: 'x10 sur le CA en ligne',
   },
   null, // slot 2 — à remplir
