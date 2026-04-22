@@ -6,6 +6,7 @@ import Marquee from '@/components/Marquee';
 import Services from '@/components/Services';
 import Showreel from '@/components/Showreel';
 import Cases from '@/components/Cases';
+import VideoTestimonials from '@/components/VideoTestimonials';
 import Process from '@/components/Process';
 import About from '@/components/About';
 import Testimonials from '@/components/Testimonials';
@@ -24,6 +25,7 @@ export default function Home() {
       <Services />
       <Showreel />
       <Cases />
+      <VideoTestimonials />
       <Process />
       <About />
       <Testimonials />

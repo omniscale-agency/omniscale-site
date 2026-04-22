@@ -1,15 +1,18 @@
 'use client';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
-import LazyVideo from './LazyVideo';
 
 const cases = [
   {
-    client: 'Maison Léa',
-    sector: 'Boutique de mode • Lyon',
-    result: '+340% de ventes en 6 mois',
+    client: 'French Retailers',
+    sector: 'Boutique de mode • Avignon',
+    result: 'Site refait, x10 sur le CA en ligne, +30% en boutique',
     color: 'from-fuchsia-500/30 to-purple-700/30',
-    tags: ['Reels', 'Ads Meta', 'Shopify'],
+    tags: ['Site', 'E-commerce', 'Insta'],
+    // Si /images/cases/french-retailers.jpg existe en public/, c'est utilisé.
+    // Sinon fallback Unsplash (boutique mode storefront).
+    image: '/images/cases/french-retailers.jpg',
+    fallback: 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=1400&q=80&auto=format&fit=crop',
   },
   {
     client: 'Trattoria Sole',
@@ -17,6 +20,7 @@ const cases = [
     result: '+12k abonnés Insta en 90j',
     color: 'from-orange-500/30 to-rose-700/30',
     tags: ['TikTok', 'Influence', 'UGC'],
+    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1400&q=80&auto=format&fit=crop',
   },
   {
     client: 'Glow Cosmetics',
@@ -24,6 +28,7 @@ const cases = [
     result: 'ROAS x6.4 sur Meta',
     color: 'from-pink-400/30 to-violet-700/30',
     tags: ['Ads', 'CRO', 'Email'],
+    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1400&q=80&auto=format&fit=crop',
   },
   {
     client: 'Atelier Brut',
@@ -31,6 +36,7 @@ const cases = [
     result: 'Site refait, +180% de trafic',
     color: 'from-amber-400/30 to-orange-700/30',
     tags: ['Site', 'SEO', 'Branding'],
+    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1400&q=80&auto=format&fit=crop',
   },
 ];
 
@@ -66,10 +72,17 @@ export default function Cases() {
               transition={{ duration: 0.6, delay: i * 0.1 }}
               className="group relative aspect-[4/5] md:aspect-[16/11] rounded-3xl overflow-hidden border border-white/10 hover:border-lilac/40 transition-all"
             >
-              <LazyVideo
-                src="/videos/showreel.mp4"
-                poster="/videos/showreel-poster.jpg"
-                className="absolute inset-0 w-full h-full object-cover"
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={c.image}
+                alt={c.client}
+                loading="lazy"
+                onError={(e) => {
+                  if ('fallback' in c && c.fallback && (e.target as HTMLImageElement).src !== c.fallback) {
+                    (e.target as HTMLImageElement).src = c.fallback;
+                  }
+                }}
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
               <div className={`absolute inset-0 bg-gradient-to-br ${c.color} mix-blend-overlay opacity-60`} />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
