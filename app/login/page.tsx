@@ -167,14 +167,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Demo credentials */}
-        <div className="mt-8 p-4 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-white/40 space-y-1">
-          <div className="font-semibold text-white/60 mb-1">Comptes de démo :</div>
-          <div>👤 Client : <code className="text-lilac">lea@maisonlea.fr</code> / <code className="text-lilac">demo2026</code></div>
-          <div>🛡️ Admin : <code className="text-lilac">admin@omniscale.fr</code> / <code className="text-lilac">admin2026</code> (cocher la case admin)</div>
-        </div>
-
-        <div className="mt-6 text-center text-sm text-white/60">
+        <div className="mt-8 text-center text-sm text-white/60">
           Pas encore de compte ? <a href="/signup" className="text-lilac hover:underline font-medium">Créer un compte</a>
         </div>
         <div className="mt-3 text-center text-sm text-white/40">

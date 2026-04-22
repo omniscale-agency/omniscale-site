@@ -39,9 +39,10 @@ export default function Footer() {
 
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-white/40">
           <div>© {new Date().getFullYear()} Omniscale — Tous droits réservés.</div>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-lilac">Mentions légales</a>
-            <a href="#" className="hover:text-lilac">Confidentialité</a>
+          <div className="flex flex-wrap gap-6">
+            <a href="/mentions-legales" className="hover:text-lilac">Mentions légales</a>
+            <a href="/cgu" className="hover:text-lilac">CGU</a>
+            <a href="/confidentialite" className="hover:text-lilac">Confidentialité</a>
           </div>
         </div>
       </div>

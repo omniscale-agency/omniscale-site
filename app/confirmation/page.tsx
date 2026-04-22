@@ -2,7 +2,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, CheckCircle2, Video, Mail, Play, Youtube } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Video, Mail, Youtube } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
@@ -56,17 +56,6 @@ function buildGoogleCalendarUrl(params: {
   url.searchParams.set('details', params.details);
   return url.toString();
 }
-
-// Placeholders pour les 6 vidéos YouTube témoignages clients (à remplir plus tard)
-// Format: { title, ytId } — quand tu as les vraies vidéos, mets l'ID YouTube (la partie après "v=" dans l'URL)
-const testimonialVideos: Array<{ title: string; ytId?: string }> = [
-  { title: 'Témoignage client 1' },
-  { title: 'Témoignage client 2' },
-  { title: 'Témoignage client 3' },
-  { title: 'Témoignage client 4' },
-  { title: 'Témoignage client 5' },
-  { title: 'Témoignage client 6' },
-];
 
 function ConfirmationContent() {
   const sp = useSearchParams();
@@ -366,68 +355,6 @@ function ConfirmationContent() {
           >
             <Youtube size={18} /> Accéder à la chaîne YouTube d'Omniscale
           </a>
-        </motion.section>
-      </div>
-
-      {/* === Section témoignages YouTube — wide container === */}
-      <div className="relative max-w-6xl mx-auto px-6 mb-16">
-        <motion.section
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="text-center mb-10">
-            <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight mb-3">
-              Ce que disent <span className="text-gradient">nos clients</span>
-            </h2>
-            <p className="text-white/60 max-w-xl mx-auto">
-              Des témoignages authentiques de commerces qu'on a aidés à passer
-              à l'échelle.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
-            {testimonialVideos.map((v, i) => (
-              <div
-                key={i}
-                className="group relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-omni-900/20 to-black hover:border-lilac/40 transition-colors cursor-pointer"
-              >
-                {v.ytId ? (
-                  <iframe
-                    src={`https://www.youtube.com/embed/${v.ytId}`}
-                    title={v.title}
-                    className="absolute inset-0 w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                ) : (
-                  <>
-                    <div className="absolute inset-0 placeholder-shimmer opacity-30" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <div className="w-16 h-16 rounded-full bg-lilac/90 group-hover:bg-white flex items-center justify-center transition-colors mb-3 shadow-2xl shadow-lilac/30">
-                        <Play size={26} fill="currentColor" className="text-ink ml-0.5" />
-                      </div>
-                      <div className="text-xs uppercase tracking-widest text-white/40">
-                        Vidéo à venir
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-8">
-            <a
-              href={YOUTUBE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-white/70 hover:text-lilac transition-colors text-sm"
-            >
-              <Youtube size={16} /> Voir tous les témoignages sur YouTube →
-            </a>
-          </div>
         </motion.section>
       </div>
 

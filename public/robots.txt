@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /dashboard
+
+# Espace client (privé)
+User-agent: *
+Disallow: /dashboard/
+
+Sitemap: https://omniscale.fr/sitemap.xml
