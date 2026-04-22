@@ -2,7 +2,7 @@
 import { useEffect, useState, useTransition, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Plug, CheckCircle2, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import { Plug, CheckCircle2, RefreshCw, AlertCircle, Sparkles, Clock } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
 import {
   getConnections,
@@ -15,10 +15,37 @@ import {
 } from '@/lib/connectionsStore';
 import RoleGate from '@/components/RoleGate';
 
-const PLATFORMS: Array<{ key: Platform; name: string; color: string; bg: string; icon: string; description: string }> = [
-  { key: 'instagram', name: 'Instagram', color: 'text-pink-400', bg: 'from-fuchsia-500/15 to-orange-500/5', icon: 'IG', description: 'Stats Reels, posts, stories, abonnés gagnés en temps réel.' },
-  { key: 'tiktok',    name: 'TikTok',    color: 'text-cyan-400', bg: 'from-cyan-400/15 to-pink-500/5',    icon: 'TT', description: 'Vues, partages, commentaires, taux de complétion par vidéo.' },
-  { key: 'youtube',   name: 'YouTube',   color: 'text-red-400',  bg: 'from-red-600/15 to-red-800/5',      icon: 'YT', description: 'Vues, watch time, abonnés, monetisation par vidéo.' },
+interface PlatformConfig {
+  key: Platform;
+  name: string;
+  color: string;
+  bg: string;
+  icon: string;
+  description: string;
+  comingSoon?: boolean;
+  comingSoonNote?: string;
+}
+
+const PLATFORMS: PlatformConfig[] = [
+  {
+    key: 'instagram', name: 'Instagram', color: 'text-pink-400',
+    bg: 'from-fuchsia-500/15 to-orange-500/5', icon: 'IG',
+    description: 'Stats Reels, posts, stories, abonnés gagnés en temps réel.',
+    comingSoon: true,
+    comingSoonNote: 'Validation Meta App Review en cours (1-2 semaines).',
+  },
+  {
+    key: 'tiktok', name: 'TikTok', color: 'text-cyan-400',
+    bg: 'from-cyan-400/15 to-pink-500/5', icon: 'TT',
+    description: 'Vues, partages, commentaires, taux de complétion par vidéo.',
+    comingSoon: true,
+    comingSoonNote: 'Validation TikTok App Review en cours (3-7 jours).',
+  },
+  {
+    key: 'youtube', name: 'YouTube', color: 'text-red-400',
+    bg: 'from-red-600/15 to-red-800/5', icon: 'YT',
+    description: 'Vues, watch time, abonnés, monetisation par vidéo.',
+  },
 ];
 
 export default function ConnectionsPage() {
@@ -188,6 +215,11 @@ function ConnectionsInner() {
                           Déconnecter
                         </button>
                       </>
+                    ) : p.comingSoon ? (
+                      <div className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                        <Clock size={14} />
+                        Bientôt disponible {p.comingSoonNote && <span className="text-amber-400/60 hidden sm:inline">— {p.comingSoonNote}</span>}
+                      </div>
                     ) : (
                       <button
                         onClick={() => startOAuth(p.key)}
