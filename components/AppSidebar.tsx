@@ -9,6 +9,7 @@ import {
 import Logo from './Logo';
 import { getSessionAsync, logout, Session, Role } from '@/lib/auth';
 import { BOOKING_URL } from '@/lib/config';
+import { ThemeToggleCompact } from './ThemeToggle';
 
 interface NavItem {
   href: string;
@@ -163,12 +164,15 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
               </div>
             </div>
           </div>
-          <button
-            onClick={onLogout}
-            className="w-full inline-flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-          >
-            <LogOut size={16} /> Se déconnecter
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onLogout}
+              className="flex-1 inline-flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <LogOut size={16} /> Se déconnecter
+            </button>
+            <ThemeToggleCompact />
+          </div>
         </div>
       </aside>
 

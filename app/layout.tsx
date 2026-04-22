@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { PostHogProvider } from '@/components/PostHogProvider';
+import { ThemeProvider, THEME_INIT_SCRIPT } from '@/components/ThemeProvider';
 import CookieBanner from '@/components/CookieBanner';
 
 export const viewport: Viewport = {
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
@@ -74,8 +76,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="noise bg-black">
-        <PostHogProvider>{children}</PostHogProvider>
-        <CookieBanner />
+        <ThemeProvider>
+          <PostHogProvider>{children}</PostHogProvider>
+          <CookieBanner />
+        </ThemeProvider>
       </body>
     </html>
   );

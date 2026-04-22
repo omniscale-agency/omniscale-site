@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { User, Building2, Shield, MapPin, Phone, Globe, TrendingUp, Tag, Save, CheckCircle2 } from 'lucide-react';
+import { User, Building2, Shield, MapPin, Phone, Globe, TrendingUp, Tag, Save, CheckCircle2, Palette } from 'lucide-react';
 import { getSessionAsync, updateUser, Session } from '@/lib/auth';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const SECTORS = [
   'Boutique de mode / Prêt-à-porter',
@@ -129,6 +130,17 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+
+        {/* Apparence */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <h2 className="font-display font-bold text-lg mb-2 flex items-center gap-2">
+            <Palette size={18} className="text-lilac" /> Apparence
+          </h2>
+          <p className="text-sm text-white/50 mb-5">
+            Choisis le thème qui te convient. "Système" suit les réglages de ton OS.
+          </p>
+          <ThemeToggle />
+        </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <h2 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
