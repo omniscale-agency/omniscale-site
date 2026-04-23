@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, FileText, Download, Send, Eye } from 'lucide-react';
 import { CLIENTS, formatCurrency } from '@/lib/mockData';
@@ -7,6 +7,7 @@ import { createInvoice, computeTotals, updateInvoice, InvoiceLine } from '@/lib/
 import { generateInvoicePDF, downloadPDF } from '@/lib/pdfGenerator';
 import { sendEmail } from '@/lib/sendEmail';
 import { formatCurrency as fmtEur } from '@/lib/mockData';
+import { supabaseBrowser } from '@/lib/supabase/client';
 
 type DocType = 'invoice' | 'payment_request';
 
@@ -18,8 +19,38 @@ interface Props {
   onSent?: () => void;
 }
 
+interface ClientOption {
+  slug: string;
+  brand: string;
+  email: string;
+  contactName: string;
+  source: 'mock' | 'db';
+}
+
 export default function InvoiceCreator({ open, type, defaultClientSlug, onClose, onSent }: Props) {
   const [clientSlug, setClientSlug] = useState(defaultClientSlug || CLIENTS[0].slug);
+  const [dbClients, setDbClients] = useState<ClientOption[]>([]);
+
+  // Charge les vrais clients (profiles role=client OU lead) depuis la DB,
+  // pour qu'admin puisse facturer un user qui n'est pas dans le mock
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const sb = supabaseBrowser();
+      const { data } = await sb
+        .from('profiles')
+        .select('id, name, brand, email, role, client_slug')
+        .in('role', ['client', 'lead']);
+      const opts: ClientOption[] = (data || []).map((p: any) => ({
+        slug: p.client_slug || `user-${p.id}`,
+        brand: p.brand || p.name || p.email,
+        email: p.email,
+        contactName: p.name || p.email.split('@')[0],
+        source: 'db',
+      }));
+      setDbClients(opts);
+    })();
+  }, [open]);
   const today = new Date().toISOString().slice(0, 10);
   const dueDefault = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const [issuedAt, setIssuedAt] = useState(today);
@@ -33,7 +64,21 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
-  const client = CLIENTS.find((c) => c.slug === clientSlug)!;
+  // Liste fusionnée mock + db (mock d'abord), dédupliqué par slug
+  const allClients: ClientOption[] = useMemo(() => {
+    const mock: ClientOption[] = CLIENTS.map((c) => ({
+      slug: c.slug,
+      brand: c.brand,
+      email: c.contact.email,
+      contactName: c.contact.name,
+      source: 'mock',
+    }));
+    const seen = new Set(mock.map((m) => m.slug));
+    const merged = [...mock, ...dbClients.filter((d) => !seen.has(d.slug))];
+    return merged;
+  }, [dbClients]);
+
+  const client = allClients.find((c) => c.slug === clientSlug) || allClients[0];
   const totals = useMemo(() => computeTotals(lines, vatRate), [lines, vatRate]);
 
   const updateLine = (i: number, patch: Partial<InvoiceLine>) =>
@@ -45,7 +90,7 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
   const buildDoc = () => ({
     clientSlug: client.slug,
     clientBrand: client.brand,
-    clientEmail: client.contact.email,
+    clientEmail: client.email,
     issuedAt: new Date(issuedAt).toISOString(),
     dueAt: new Date(dueAt).toISOString(),
     lines: lines.filter((l) => l.description.trim() && l.quantity > 0),
@@ -84,9 +129,9 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
       invoiceId = created.id;
     }
     // Email réel au client
-    if (client.contact.email && invoiceId) {
-      sendEmail('invoice', client.contact.email, {
-        clientName: client.contact.name,
+    if (client.email && invoiceId) {
+      sendEmail('invoice', client.email, {
+        clientName: client.contactName,
         invoiceId,
         amount: fmtEur(totals.total),
         dueAt: new Date(dueAt).toISOString(),
@@ -154,7 +199,11 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Client">
                     <select value={clientSlug} onChange={(e) => setClientSlug(e.target.value)} className={inputCls}>
-                      {CLIENTS.map((c) => <option key={c.slug} value={c.slug}>{c.brand}</option>)}
+                      {allClients.map((c) => (
+                        <option key={c.slug} value={c.slug}>
+                          {c.brand}{c.source === 'db' ? ' · réel' : ''}
+                        </option>
+                      ))}
                     </select>
                   </Field>
                   <Field label="TVA (%)">
@@ -282,7 +331,7 @@ export default function InvoiceCreator({ open, type, defaultClientSlug, onClose,
                   </button>
                 </div>
                 <p className="text-[11px] text-white/40 mt-2 text-center">
-                  ✉️ Email envoyé à {client.contact.email} + apparaît dans l'espace client (mock — vrai SMTP en phase 2)
+                  ✉️ Email envoyé à {client.email} + apparaît dans l'espace client en temps réel
                 </p>
               </div>
             </div>

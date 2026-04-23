@@ -72,6 +72,30 @@ create table if not exists public.events (
 create index if not exists idx_events_client on public.events(client_slug);
 create index if not exists idx_events_starts on public.events(starts_at);
 
+-- =========== OBJECTIVES (admin → client) ===========
+create table if not exists public.objectives (
+  id uuid primary key default uuid_generate_v4(),
+  client_slug text not null,
+  label text not null,
+  current numeric not null default 0,
+  target numeric not null,
+  unit text not null default '',
+  position int not null default 0,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_objectives_client on public.objectives(client_slug);
+
+create or replace function public.touch_updated_at()
+returns trigger language plpgsql as $$
+begin new.updated_at = now(); return new; end;
+$$;
+drop trigger if exists trg_objectives_updated on public.objectives;
+create trigger trg_objectives_updated
+  before update on public.objectives
+  for each row execute function public.touch_updated_at();
+
 -- =========== INVOICES ===========
 create table if not exists public.invoices (
   id text primary key,                    -- F-2026-0042
@@ -125,6 +149,7 @@ on conflict (id) do nothing;
 alter table public.profiles enable row level security;
 alter table public.todos enable row level security;
 alter table public.events enable row level security;
+alter table public.objectives enable row level security;
 alter table public.invoices enable row level security;
 alter table public.connections enable row level security;
 alter table public.company_settings enable row level security;
@@ -152,6 +177,18 @@ as $$
   select client_slug from public.profiles where id = auth.uid();
 $$;
 
+-- Helper : slug "personnel" auto pour un user (utilisé quand pas de mock binding)
+-- Pattern : 'user-{uuid}' — utilisé par les pages dashboard pour les comptes
+-- non mappés à un dossier mock client.
+create or replace function public.my_user_slug()
+returns text
+language sql
+stable
+security definer set search_path = public
+as $$
+  select 'user-' || auth.uid()::text;
+$$;
+
 -- ----- PROFILES -----
 drop policy if exists "profiles_self_read" on public.profiles;
 create policy "profiles_self_read" on public.profiles
@@ -168,11 +205,19 @@ create policy "profiles_admin_all" on public.profiles
 -- ----- TODOS -----
 drop policy if exists "todos_client_read" on public.todos;
 create policy "todos_client_read" on public.todos
-  for select using (client_slug = public.my_client_slug() or public.is_admin());
+  for select using (
+    client_slug = public.my_client_slug()
+    or client_slug = public.my_user_slug()
+    or public.is_admin()
+  );
 
 drop policy if exists "todos_client_update" on public.todos;
 create policy "todos_client_update" on public.todos
-  for update using (client_slug = public.my_client_slug() or public.is_admin());
+  for update using (
+    client_slug = public.my_client_slug()
+    or client_slug = public.my_user_slug()
+    or public.is_admin()
+  );
 
 drop policy if exists "todos_admin_write" on public.todos;
 create policy "todos_admin_write" on public.todos
@@ -181,17 +226,38 @@ create policy "todos_admin_write" on public.todos
 -- ----- EVENTS -----
 drop policy if exists "events_client_read" on public.events;
 create policy "events_client_read" on public.events
-  for select using (client_slug = public.my_client_slug() or public.is_admin());
+  for select using (
+    client_slug = public.my_client_slug()
+    or client_slug = public.my_user_slug()
+    or public.is_admin()
+  );
 
 drop policy if exists "events_admin_write" on public.events;
 create policy "events_admin_write" on public.events
+  for all using (public.is_admin());
+
+-- ----- OBJECTIVES -----
+drop policy if exists "objectives_client_read" on public.objectives;
+create policy "objectives_client_read" on public.objectives
+  for select using (
+    client_slug = public.my_client_slug()
+    or client_slug = public.my_user_slug()
+    or public.is_admin()
+  );
+
+drop policy if exists "objectives_admin_write" on public.objectives;
+create policy "objectives_admin_write" on public.objectives
   for all using (public.is_admin());
 
 -- ----- INVOICES -----
 drop policy if exists "invoices_client_read" on public.invoices;
 create policy "invoices_client_read" on public.invoices
   for select using (
-    (client_slug = public.my_client_slug() and status != 'draft') or public.is_admin()
+    (
+      (client_slug = public.my_client_slug() or client_slug = public.my_user_slug())
+      and status != 'draft'
+    )
+    or public.is_admin()
   );
 
 drop policy if exists "invoices_admin_write" on public.invoices;
@@ -219,6 +285,7 @@ create policy "company_admin_write" on public.company_settings
 
 alter publication supabase_realtime add table public.todos;
 alter publication supabase_realtime add table public.events;
+alter publication supabase_realtime add table public.objectives;
 alter publication supabase_realtime add table public.invoices;
 alter publication supabase_realtime add table public.profiles;
 

@@ -9,6 +9,7 @@ import RoleGate from '@/components/RoleGate';
 import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } from '@/lib/mockData';
 import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
 import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/lib/sharedStore';
+import { fetchObjectives, subscribeObjectives, Objective } from '@/lib/objectivesStore';
 import { fetchRealSocialData, RealSocialData } from '@/lib/socialReal';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
@@ -48,6 +49,7 @@ export default function ClientDashboard() {
   const [compare, setCompare] = useState(false);
   const [extraTodos, setExtraTodos] = useState<Todo[]>([]);
   const [extraEvents, setExtraEvents] = useState<Event[]>([]);
+  const [dbObjectives, setDbObjectives] = useState<Objective[]>([]);
   const [real, setReal] = useState<RealSocialData>({ connections: {}, videos: [] });
   const [loaded, setLoaded] = useState(false);
 
@@ -72,12 +74,19 @@ export default function ClientDashboard() {
   useEffect(() => {
     if (!extrasSlug) return;
     const refresh = async () => {
-      const [t, e] = await Promise.all([fetchTodos(extrasSlug), fetchEvents(extrasSlug)]);
+      const [t, e, o] = await Promise.all([
+        fetchTodos(extrasSlug),
+        fetchEvents(extrasSlug),
+        fetchObjectives(extrasSlug),
+      ]);
       setExtraTodos(t);
       setExtraEvents(e);
+      setDbObjectives(o);
     };
     refresh();
-    return subscribeClientChanges(extrasSlug, refresh);
+    const offChanges = subscribeClientChanges(extrasSlug, refresh);
+    const offObj = subscribeObjectives(extrasSlug, refresh);
+    return () => { offChanges(); offObj(); };
   }, [extrasSlug]);
 
   const series = useMemo(() => {
@@ -301,27 +310,43 @@ export default function ClientDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        <Card title="Objectifs en cours" icon={Target} className="lg:col-span-2">
-          <div className="space-y-5">
-            {client.objectives.map((o) => {
-              const pct = Math.min(100, Math.round((o.current / o.target) * 100));
+        <Card title="Objectifs en cours" icon={Target} className="lg:col-span-2"
+          action={<a href="/dashboard/objectives" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Tout voir <ArrowUpRight size={12} /></a>}>
+          {(() => {
+            const objsToShow = dbObjectives.length > 0
+              ? dbObjectives.map((o) => ({ key: o.id, label: o.label, current: o.current, target: o.target, unit: o.unit }))
+              : client.objectives.map((o, i) => ({ key: `mock-${i}`, ...o }));
+            if (objsToShow.length === 0) {
               return (
-                <div key={o.label}>
-                  <div className="flex items-center justify-between mb-1.5 text-sm">
-                    <span className="text-white/80">{o.label}</span>
-                    <span className="font-mono text-white/60">
-                      {o.unit === '€' ? formatCurrency(o.current) : `${o.current}${o.unit}`}
-                      <span className="text-white/30"> / {o.unit === '€' ? formatCurrency(o.target) : `${o.target}${o.unit}`}</span>
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400 transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="text-xs text-white/40 mt-1">{pct}% atteint</div>
+                <div className="text-sm text-white/50 italic py-4">
+                  Pas encore d'objectifs définis. Ton account manager les fixera à ton onboarding.
                 </div>
               );
-            })}
-          </div>
+            }
+            return (
+              <div className="space-y-5">
+                {objsToShow.map((o) => {
+                  const pct = Math.min(100, Math.round((o.current / Math.max(1, o.target)) * 100));
+                  const fmt = (n: number) => o.unit === '€' ? formatCurrency(n) : `${n}${o.unit ? ' ' + o.unit : ''}`;
+                  return (
+                    <div key={o.key}>
+                      <div className="flex items-center justify-between mb-1.5 text-sm">
+                        <span className="text-white/80">{o.label}</span>
+                        <span className="font-mono text-white/60">
+                          {fmt(o.current)}
+                          <span className="text-white/30"> / {fmt(o.target)}</span>
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="text-xs text-white/40 mt-1">{pct}% atteint</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </Card>
 
         <Card title="Tâches en cours" icon={CheckSquare} subtitle={`${todosOpen.length} en attente`}

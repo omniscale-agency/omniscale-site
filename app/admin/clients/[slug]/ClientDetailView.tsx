@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import {
-  ArrowLeft, Eye, Users, TrendingUp, DollarSign, Target,
-  CheckSquare, Square, Calendar, Activity, Building2, MapPin,
-  Mail, Phone, Sparkles, Globe, Tag, Clock,
+  ArrowLeft, Eye, Users, TrendingUp, DollarSign,
+  Calendar, Activity, Building2, MapPin,
+  Mail, Phone, Sparkles, Globe,
 } from 'lucide-react';
 import { findAdminClient, AdminClientRow } from '@/lib/adminClients';
 import { ClientData, formatNumber, formatCurrency } from '@/lib/mockData';
@@ -11,6 +11,9 @@ import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import SendActionsBar from '@/components/admin/SendActionsBar';
+import ObjectivesEditor from '@/components/admin/ObjectivesEditor';
+import ClientTodosCard from '@/components/admin/ClientTodosCard';
+import ClientEventsCard from '@/components/admin/ClientEventsCard';
 
 export default function ClientDetailView({ slug }: { slug: string }) {
   const [row, setRow] = useState<AdminClientRow | null>(null);
@@ -125,35 +128,17 @@ export default function ClientDetailView({ slug }: { slug: string }) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <Card title="Objectifs" icon={Target}>
-              <div className="space-y-4">
-                {client.objectives.map((o) => {
-                  const pct = Math.min(100, Math.round((o.current / o.target) * 100));
-                  return (
-                    <div key={o.label}>
-                      <div className="flex items-center justify-between mb-1.5 text-sm">
-                        <span className="text-white/80">{o.label}</span>
-                        <span className="font-mono text-white/60">{pct}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-lilac to-omni-400" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
-            <TasksCard mockTodos={client.todos} extraTodos={extras.todos} />
+            <ObjectivesEditor slug={extrasSlug} />
+            <ClientTodosCard mockTodos={client.todos} extraTodos={extras.todos} />
           </div>
         </>
       )}
 
-      {/* Si pas de mock data, on affiche juste les tâches/RDV envoyés par admin */}
+      {/* Pas de mock data : objectifs + tâches + RDV (tout vient de la DB) */}
       {!client && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <TasksCard mockTodos={[]} extraTodos={extras.todos} />
-          <UpcomingCard mockEvents={[]} extraEvents={extras.events} />
+          <ObjectivesEditor slug={extrasSlug} />
+          <ClientTodosCard mockTodos={[]} extraTodos={extras.todos} />
         </div>
       )}
 
@@ -172,7 +157,13 @@ export default function ClientDetailView({ slug }: { slug: string }) {
               ))}
             </ol>
           </Card>
-          <UpcomingCard mockEvents={client.upcomingEvents} extraEvents={extras.events} />
+          <ClientEventsCard mockEvents={client.upcomingEvents} extraEvents={extras.events} />
+        </div>
+      )}
+
+      {!client && (
+        <div className="grid grid-cols-1 gap-6 mb-8">
+          <ClientEventsCard mockEvents={[]} extraEvents={extras.events} />
         </div>
       )}
 
@@ -237,63 +228,3 @@ function Field({ label, value, link, icon: Icon, external }: { label: string; va
   );
 }
 
-function TasksCard({ mockTodos, extraTodos }: { mockTodos: any[]; extraTodos: Todo[] }) {
-  const all = [...extraTodos, ...mockTodos];
-  return (
-    <Card title="Tâches" icon={CheckSquare} subtitle={`${all.filter((t) => !t.done).length} ouvertes`}>
-      {all.length === 0 ? (
-        <div className="text-sm text-white/50 italic">Aucune tâche pour le moment.</div>
-      ) : (
-        <ul className="space-y-2.5 max-h-72 overflow-y-auto">
-          {all.map((t) => (
-            <li key={t.id} className="flex items-start gap-3 text-sm">
-              {t.done ? <CheckSquare className="text-lilac mt-0.5 shrink-0" size={16} /> : <Square className="text-white/40 mt-0.5 shrink-0" size={16} />}
-              <div className={`flex-1 ${t.done ? 'line-through text-white/40' : ''}`}>
-                {extraTodos.includes(t) && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold mr-1.5">Envoyée</span>
-                )}
-                {t.title}
-                {t.assignee && <span className="text-xs text-white/40 ml-2">· {t.assignee}</span>}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-function UpcomingCard({ mockEvents, extraEvents }: { mockEvents: any[]; extraEvents: Event[] }) {
-  const all = [...extraEvents, ...mockEvents].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  return (
-    <Card title="Prochains RDV" icon={Calendar}>
-      {all.length === 0 ? (
-        <div className="text-sm text-white/50 italic">Aucun RDV planifié.</div>
-      ) : (
-        <ul className="space-y-3 max-h-72 overflow-y-auto">
-          {all.map((e) => {
-            const d = new Date(e.startsAt);
-            return (
-              <li key={e.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02]">
-                <div className="text-center w-12 shrink-0 rounded-lg bg-lilac/10 border border-lilac/30 py-1.5">
-                  <div className="font-display font-bold text-lg leading-none text-lilac">{d.toLocaleDateString('fr-FR', { day: '2-digit' })}</div>
-                  <div className="text-[10px] uppercase text-white/60">{d.toLocaleDateString('fr-FR', { month: 'short' })}</div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {extraEvents.includes(e) && (<span className="text-[9px] px-1.5 py-0.5 rounded bg-lilac/20 text-lilac uppercase font-semibold">Envoyé</span>)}
-                    <span>{e.title}</span>
-                  </div>
-                  <div className="text-xs text-white/50 mt-0.5">
-                    {d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · {e.duration} min
-                  </div>
-                  <div className="text-xs text-white/40">avec {e.with}</div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </Card>
-  );
-}
