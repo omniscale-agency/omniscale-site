@@ -57,6 +57,8 @@ export default function ClientDetailView({ slug }: { slug: string }) {
 
   const client: ClientData | undefined = row.mockData;
   const isOnboarding = !row.hasMockStats;
+  const clientEmail = row.profile?.email || client?.contact?.email || '';
+  const clientName = row.profile?.name || client?.contact?.name || row.brand;
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
@@ -129,7 +131,7 @@ export default function ClientDetailView({ slug }: { slug: string }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <ObjectivesEditor slug={extrasSlug} />
-            <ClientTodosCard mockTodos={client.todos} extraTodos={extras.todos} />
+            <ClientTodosCard mockTodos={client.todos} extraTodos={extras.todos} clientEmail={clientEmail} clientName={clientName} />
           </div>
         </>
       )}
@@ -138,7 +140,7 @@ export default function ClientDetailView({ slug }: { slug: string }) {
       {!client && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <ObjectivesEditor slug={extrasSlug} />
-          <ClientTodosCard mockTodos={[]} extraTodos={extras.todos} />
+          <ClientTodosCard mockTodos={[]} extraTodos={extras.todos} clientEmail={clientEmail} clientName={clientName} />
         </div>
       )}
 
@@ -157,13 +159,13 @@ export default function ClientDetailView({ slug }: { slug: string }) {
               ))}
             </ol>
           </Card>
-          <ClientEventsCard mockEvents={client.upcomingEvents} extraEvents={extras.events} />
+          <ClientEventsCard mockEvents={client.upcomingEvents} extraEvents={extras.events} clientEmail={clientEmail} clientName={clientName} />
         </div>
       )}
 
       {!client && (
         <div className="grid grid-cols-1 gap-6 mb-8">
-          <ClientEventsCard mockEvents={[]} extraEvents={extras.events} />
+          <ClientEventsCard mockEvents={[]} extraEvents={extras.events} clientEmail={clientEmail} clientName={clientName} />
         </div>
       )}
 

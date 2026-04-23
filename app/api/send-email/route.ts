@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import {
   templateNewTask, templateNewEvent, templateNewInvoice,
   templateNewLeadAdmin, templateWelcomeLead,
+  templateCancelTask, templateCancelEvent,
 } from '@/lib/emailTemplates';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
       case 'event':
         subject = `Nouveau RDV : ${data.eventTitle}`;
         html = templateNewEvent(data as any);
+        break;
+      case 'task_cancelled':
+        subject = `Tâche annulée : ${data.taskTitle}`;
+        html = templateCancelTask(data as any);
+        break;
+      case 'event_cancelled':
+        subject = `RDV annulé : ${data.eventTitle}`;
+        html = templateCancelEvent(data as any);
         break;
       case 'invoice':
         subject = `${data.type === 'payment_request' ? 'Demande de paiement' : 'Facture'} ${data.invoiceId} — Omniscale`;

@@ -10,6 +10,7 @@ import Logo from './Logo';
 import { getSessionAsync, logout, Session, Role } from '@/lib/auth';
 import { BOOKING_URL } from '@/lib/config';
 import { ThemeToggleCompact } from './ThemeToggle';
+import { useDashboardNotifications } from '@/lib/notifications';
 
 interface NavItem {
   href: string;
@@ -36,6 +37,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin', label: 'Vue d\'ensemble', Icon: LayoutDashboard },
   { href: '/admin/clients', label: 'Clients', Icon: Users },
   { href: '/admin/users', label: 'Utilisateurs & rôles', Icon: Users },
+  { href: '/admin/calendar', label: 'Agenda global', Icon: Calendar },
   { href: '/admin/leads', label: 'Leads & acquisition', Icon: Filter },
   { href: '/admin/analytics', label: 'Analytics & funnel', Icon: BarChart3 },
   { href: '/admin/finance', label: 'Trésorerie', Icon: Wallet },
@@ -58,10 +60,24 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
     });
   }, [router, variant]);
 
+  // Slug pour fetch les notifs (cohérent avec dashboard/page.tsx)
+  const notifSlug = variant === 'client' && session
+    ? (session.clientSlug || (session.userId ? `user-${session.userId}` : null))
+    : null;
+  const notifs = useDashboardNotifications(notifSlug);
+
   if (!session) return null;
 
   const items = variant === 'admin' ? ADMIN_NAV : CLIENT_NAV;
   const isLead = session.role === 'lead';
+
+  /** Renvoie le compteur à afficher en badge pour un href donné. */
+  const badgeFor = (href: string): number | null => {
+    if (variant !== 'client' || isLead) return null;
+    if (href === '/dashboard/todos') return notifs.newTodos > 0 ? notifs.newTodos : null;
+    if (href === '/dashboard/calendar') return notifs.newEvents > 0 ? notifs.newEvents : null;
+    return null;
+  };
 
   const onLogout = async () => { await logout(); router.push('/login'); };
 
@@ -108,6 +124,7 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
           {items.map(({ href, label, Icon, premium }) => {
             const active = pathname === href || (href !== '/dashboard' && href !== '/admin' && pathname.startsWith(href));
             const locked = variant === 'client' && isLead && premium === true;
+            const badge = badgeFor(href);
             return (
               <a
                 key={href}
@@ -125,11 +142,15 @@ export default function AppSidebar({ variant }: { variant: 'client' | 'admin' })
                   <Icon size={18} className={active ? 'text-lilac' : ''} />
                   <span className="truncate">{label}</span>
                 </span>
-                {locked && (
+                {locked ? (
                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 uppercase tracking-wider shrink-0">
                     Client
                   </span>
-                )}
+                ) : badge ? (
+                  <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                ) : null}
               </a>
             );
           })}

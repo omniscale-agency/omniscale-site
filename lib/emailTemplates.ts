@@ -134,6 +134,46 @@ export function templateNewEvent(opts: { clientName: string; eventTitle: string;
   });
 }
 
+export function templateCancelTask(opts: { clientName: string; taskTitle: string; reason?: string }) {
+  return shell({
+    preheader: `Tâche annulée : ${opts.taskTitle}`,
+    title: `Une tâche a été annulée 🗑`,
+    body: `
+      <p>Salut ${opts.clientName},</p>
+      <p>L'équipe Omniscale a annulé la tâche suivante. Elle a disparu de ton espace client :</p>
+      <div style="margin:24px 0;padding:20px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:14px;">
+        <p style="margin:0;font-size:18px;font-weight:600;color:#fff;text-decoration:line-through;text-decoration-color:#f87171;">${opts.taskTitle}</p>
+      </div>
+      ${opts.reason ? `<p style="color:#aaa;">Raison : ${opts.reason}</p>` : ''}
+      <p>Aucune action requise de ta part.</p>
+    `,
+    ctaLabel: 'Voir mes tâches',
+    ctaUrl: `${BASE_URL}/dashboard/todos`,
+  });
+}
+
+export function templateCancelEvent(opts: { clientName: string; eventTitle: string; startsAt: string; reason?: string }) {
+  const d = new Date(opts.startsAt);
+  const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  return shell({
+    preheader: `RDV annulé : ${opts.eventTitle} (${date})`,
+    title: `Rendez-vous annulé ❌`,
+    body: `
+      <p>Salut ${opts.clientName},</p>
+      <p>Le rendez-vous suivant vient d'être annulé :</p>
+      <div style="margin:24px 0;padding:20px;background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:14px;">
+        <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#fff;text-decoration:line-through;text-decoration-color:#f87171;">${opts.eventTitle}</p>
+        <p style="margin:6px 0;color:#aaa;text-transform:capitalize;">${date} à ${time}</p>
+      </div>
+      ${opts.reason ? `<p style="color:#aaa;">Raison : ${opts.reason}</p>` : ''}
+      <p>On te recontactera pour reprogrammer si nécessaire. Tu peux aussi <a href="${BASE_URL}/dashboard/calendar" style="color:#B794E8;">réserver un nouveau créneau</a> directement.</p>
+    `,
+    ctaLabel: 'Voir mon agenda',
+    ctaUrl: `${BASE_URL}/dashboard/calendar`,
+  });
+}
+
 export function templateNewInvoice(opts: { clientName: string; invoiceId: string; amount: string; dueAt: string; type: 'invoice' | 'payment_request' }) {
   const isReq = opts.type === 'payment_request';
   const due = new Date(opts.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });

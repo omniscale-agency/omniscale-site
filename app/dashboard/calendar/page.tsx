@@ -4,6 +4,7 @@ import { Calendar, Video, Users, Sparkles, ExternalLink, CalendarPlus } from 'lu
 import { getSessionAsync, Session } from '@/lib/auth';
 import { ClientData, getClientBySlug } from '@/lib/mockData';
 import { fetchEvents, subscribeClientChanges, Event } from '@/lib/sharedStore';
+import { markSeen } from '@/lib/notifications';
 import RoleGate from '@/components/RoleGate';
 import EmptyState from '@/components/dashboard/EmptyState';
 import { BOOKING_URL } from '@/lib/config';
@@ -48,7 +49,10 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!slug) return;
-    const refresh = async () => setExtras(await fetchEvents(slug));
+    const refresh = async () => {
+      setExtras(await fetchEvents(slug));
+      markSeen('events', slug);
+    };
     refresh();
     return subscribeClientChanges(slug, refresh);
   }, [slug]);

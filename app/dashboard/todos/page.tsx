@@ -4,6 +4,7 @@ import { CheckSquare, Square, Clock, BadgePlus } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
 import { ClientData, getClientBySlug } from '@/lib/mockData';
 import { fetchTodos, toggleTodo, subscribeClientChanges, Todo } from '@/lib/sharedStore';
+import { markSeen } from '@/lib/notifications';
 import RoleGate from '@/components/RoleGate';
 import EmptyState from '@/components/dashboard/EmptyState';
 
@@ -33,7 +34,10 @@ export default function TodosPage() {
 
   useEffect(() => {
     if (!slug) return;
-    const refresh = async () => setDbTodos(await fetchTodos(slug));
+    const refresh = async () => {
+      setDbTodos(await fetchTodos(slug));
+      markSeen('todos', slug);
+    };
     refresh();
     return subscribeClientChanges(slug, refresh);
   }, [slug]);

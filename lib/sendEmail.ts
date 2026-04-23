@@ -1,7 +1,9 @@
 'use client';
 
 /** Client helper pour appeler l'API route /api/send-email */
-export type EmailKind = 'task' | 'event' | 'invoice' | 'new_lead_admin' | 'welcome_lead';
+export type EmailKind =
+  | 'task' | 'event' | 'invoice' | 'new_lead_admin' | 'welcome_lead'
+  | 'task_cancelled' | 'event_cancelled';
 
 export async function sendEmail(kind: EmailKind, to: string, data: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
   try {

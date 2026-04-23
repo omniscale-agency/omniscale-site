@@ -8,6 +8,7 @@ export interface Todo {
   dueDate?: string;
   assignee?: string;
   priority?: 'low' | 'med' | 'high';
+  createdAt?: string;
 }
 
 export interface Event {
@@ -17,6 +18,8 @@ export interface Event {
   duration: number;
   type: 'call' | 'shooting' | 'review' | 'workshop';
   with: string;
+  createdAt?: string;
+  clientSlug?: string;
 }
 
 // ---------- TODOS ----------
@@ -28,6 +31,7 @@ function todoFromDB(r: any): Todo {
     dueDate: r.due_date || undefined,
     assignee: r.assignee || undefined,
     priority: r.priority || undefined,
+    createdAt: r.created_at || undefined,
   };
 }
 
@@ -61,6 +65,17 @@ export async function toggleTodo(id: string) {
   await sb.from('todos').update({ done: !cur.done }).eq('id', id);
 }
 
+export async function updateTodo(id: string, patch: Partial<Omit<Todo, 'id' | 'createdAt'>>) {
+  const sb = supabaseBrowser();
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.title !== undefined) dbPatch.title = patch.title;
+  if (patch.done !== undefined) dbPatch.done = patch.done;
+  if (patch.dueDate !== undefined) dbPatch.due_date = patch.dueDate || null;
+  if (patch.assignee !== undefined) dbPatch.assignee = patch.assignee || null;
+  if (patch.priority !== undefined) dbPatch.priority = patch.priority || null;
+  await sb.from('todos').update(dbPatch).eq('id', id);
+}
+
 export async function deleteTodo(id: string) {
   const sb = supabaseBrowser();
   await sb.from('todos').delete().eq('id', id);
@@ -75,6 +90,8 @@ function eventFromDB(r: any): Event {
     duration: r.duration,
     type: r.type,
     with: r.with_who || '',
+    createdAt: r.created_at || undefined,
+    clientSlug: r.client_slug || undefined,
   };
 }
 
@@ -101,9 +118,37 @@ export async function addEvent(clientSlug: string, event: Omit<Event, 'id'>): Pr
   return data ? eventFromDB(data) : null;
 }
 
+export async function updateEvent(id: string, patch: Partial<Omit<Event, 'id' | 'createdAt' | 'clientSlug'>>) {
+  const sb = supabaseBrowser();
+  const dbPatch: Record<string, unknown> = {};
+  if (patch.title !== undefined) dbPatch.title = patch.title;
+  if (patch.startsAt !== undefined) dbPatch.starts_at = patch.startsAt;
+  if (patch.duration !== undefined) dbPatch.duration = patch.duration;
+  if (patch.type !== undefined) dbPatch.type = patch.type;
+  if (patch.with !== undefined) dbPatch.with_who = patch.with;
+  await sb.from('events').update(dbPatch).eq('id', id);
+}
+
 export async function deleteEvent(id: string) {
   const sb = supabaseBrowser();
   await sb.from('events').delete().eq('id', id);
+}
+
+/** Fetch tous les events de tous les clients (admin only via RLS). */
+export async function fetchAllEvents(): Promise<Event[]> {
+  const sb = supabaseBrowser();
+  const { data } = await sb.from('events').select('*').order('starts_at', { ascending: true });
+  return (data || []).map(eventFromDB);
+}
+
+/** Subscribe à TOUS les changements d'events (admin only). */
+export function subscribeAllEvents(cb: () => void): () => void {
+  const sb = supabaseBrowser();
+  const ch = sb
+    .channel('events-all')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => cb())
+    .subscribe();
+  return () => { sb.removeChannel(ch); };
 }
 
 // ---------- REALTIME SUBSCRIPTION ----------
