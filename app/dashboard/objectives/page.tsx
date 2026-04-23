@@ -2,24 +2,45 @@
 import { useEffect, useState } from 'react';
 import { Target, Trophy } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
-import { CLIENTS, ClientData, getClientBySlug, formatCurrency } from '@/lib/mockData';
+import { ClientData, getClientBySlug, formatCurrency } from '@/lib/mockData';
 import RoleGate from '@/components/RoleGate';
+import EmptyState from '@/components/dashboard/EmptyState';
 
 export default function ObjectivesPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [client, setClient] = useState<ClientData | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getSessionAsync().then((s) => {
       if (!s) return;
       setSession(s);
-      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
+      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || null);
+      setLoaded(true);
     });
   }, []);
 
-  if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
-  if (session?.role === 'lead') {
+  if (!loaded || !session) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session.role === 'lead') {
     return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Objectifs trimestriels"><></></RoleGate>;
+  }
+
+  if (!client || client.objectives.length === 0) {
+    return (
+      <main className="p-6 md:p-10 lg:p-12 max-w-5xl mx-auto">
+        <div className="mb-10">
+          <div className="text-xs uppercase tracking-widest text-lilac mb-2">Objectifs</div>
+          <h1 className="font-display text-4xl font-bold tracking-tight">Tes objectifs trimestriels</h1>
+          <p className="text-white/60 mt-2">Co-construits avec ton account manager.</p>
+        </div>
+        <EmptyState
+          icon={Target}
+          title="Pas encore d'objectifs définis"
+          description="Tes objectifs (CA, abonnés, ROAS, nombre de RDV…) seront fixés ensemble avec ton account manager Omniscale lors du premier appel d'onboarding. Ils apparaîtront ici en temps réel."
+          cta={{ label: 'Réserver mon onboarding', href: '/dashboard/calendar' }}
+        />
+      </main>
+    );
   }
 
   return (

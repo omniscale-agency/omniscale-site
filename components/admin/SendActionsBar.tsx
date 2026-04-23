@@ -6,6 +6,7 @@ import { addTodo, addEvent } from '@/lib/sharedStore';
 import { CLIENTS } from '@/lib/mockData';
 import { sendEmail } from '@/lib/sendEmail';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { buildGCalUrl } from '@/lib/emailTemplates';
 
 type Mode = 'todo' | 'event' | null;
 
@@ -35,6 +36,7 @@ async function resolveClientEmail(slug: string): Promise<{ email: string; name: 
 export default function SendActionsBar({ slug, brand }: { slug: string; brand: string }) {
   const [mode, setMode] = useState<Mode>(null);
   const [sentMessage, setSentMessage] = useState('');
+  const [gcalLink, setGcalLink] = useState('');
   const [client, setClient] = useState<{ email: string; name: string }>({ email: '', name: '' });
 
   useEffect(() => { resolveClientEmail(slug).then(setClient); }, [slug]);
@@ -74,6 +76,16 @@ export default function SendActionsBar({ slug, brand }: { slug: string; brand: s
                   <div className="text-xs text-green-300/70 mt-0.5 inline-flex items-center gap-1">
                     <Mail size={10} /> Email envoyé à {clientEmail}
                   </div>
+                )}
+                {gcalLink && (
+                  <a
+                    href={gcalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-green-200 underline mt-1.5 inline-flex items-center gap-1 hover:text-white"
+                  >
+                    <Calendar size={10} /> L'ajouter à mon Google Calendar
+                  </a>
                 )}
               </div>
             </div>
@@ -121,7 +133,12 @@ export default function SendActionsBar({ slug, brand }: { slug: string; brand: s
                   slug={slug}
                   clientEmail={clientEmail}
                   clientName={client.name || brand}
-                  onSent={(title) => { setSentMessage(`RDV "${title}" planifié avec ${brand}`); setMode(null); setTimeout(() => setSentMessage(''), 3500); }}
+                  onSent={(title, gcal) => {
+                    setSentMessage(`RDV "${title}" planifié avec ${brand}`);
+                    setGcalLink(gcal);
+                    setMode(null);
+                    setTimeout(() => { setSentMessage(''); setGcalLink(''); }, 8000);
+                  }}
                 />
               )}
             </motion.div>
@@ -183,7 +200,7 @@ function TodoForm({ slug, clientEmail, clientName, onSent }: { slug: string; cli
   );
 }
 
-function EventForm({ slug, clientEmail, clientName, onSent }: { slug: string; clientEmail: string; clientName: string; onSent: (title: string) => void }) {
+function EventForm({ slug, clientEmail, clientName, onSent }: { slug: string; clientEmail: string; clientName: string; onSent: (title: string, gcalUrl: string) => void }) {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('14:00');
@@ -199,7 +216,8 @@ function EventForm({ slug, clientEmail, clientName, onSent }: { slug: string; cl
     if (clientEmail) {
       sendEmail('event', clientEmail, { clientName, eventTitle: title.trim(), startsAt, duration, type, with: withWho }).catch(() => {});
     }
-    onSent(title.trim());
+    const gcal = buildGCalUrl({ eventTitle: title.trim(), startsAt, duration, with: withWho, type });
+    onSent(title.trim(), gcal);
   };
 
   return (

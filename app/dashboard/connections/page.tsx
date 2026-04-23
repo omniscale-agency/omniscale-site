@@ -23,7 +23,6 @@ interface PlatformConfig {
   icon: string;
   description: string;
   comingSoon?: boolean;
-  comingSoonNote?: string;
 }
 
 const PLATFORMS: PlatformConfig[] = [
@@ -32,14 +31,12 @@ const PLATFORMS: PlatformConfig[] = [
     bg: 'from-fuchsia-500/15 to-orange-500/5', icon: 'IG',
     description: 'Stats Reels, posts, stories, abonnés gagnés en temps réel.',
     comingSoon: true,
-    comingSoonNote: 'Validation Meta App Review en cours (1-2 semaines).',
   },
   {
     key: 'tiktok', name: 'TikTok', color: 'text-cyan-400',
     bg: 'from-cyan-400/15 to-pink-500/5', icon: 'TT',
     description: 'Vues, partages, commentaires, taux de complétion par vidéo.',
     comingSoon: true,
-    comingSoonNote: 'Validation TikTok App Review en cours (3-7 jours).',
   },
   {
     key: 'youtube', name: 'YouTube', color: 'text-red-400',
@@ -218,7 +215,7 @@ function ConnectionsInner() {
                     ) : p.comingSoon ? (
                       <div className="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
                         <Clock size={14} />
-                        Bientôt disponible {p.comingSoonNote && <span className="text-amber-400/60 hidden sm:inline">— {p.comingSoonNote}</span>}
+                        Bientôt disponible
                       </div>
                     ) : (
                       <button

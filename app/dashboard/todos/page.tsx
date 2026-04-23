@@ -2,9 +2,10 @@
 import { useEffect, useState } from 'react';
 import { CheckSquare, Square, Clock, BadgePlus } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
-import { CLIENTS, ClientData, getClientBySlug } from '@/lib/mockData';
+import { ClientData, getClientBySlug } from '@/lib/mockData';
 import { fetchTodos, toggleTodo, subscribeClientChanges, Todo } from '@/lib/sharedStore';
 import RoleGate from '@/components/RoleGate';
+import EmptyState from '@/components/dashboard/EmptyState';
 
 export default function TodosPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -12,28 +13,33 @@ export default function TodosPage() {
   const [mockTodos, setMockTodos] = useState<ClientData['todos']>([]);
   const [dbTodos, setDbTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<'all' | 'open' | 'done'>('open');
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getSessionAsync().then((s) => {
       if (!s) return;
       setSession(s);
-      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
+      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : null;
       if (c) {
         setClient(c);
         setMockTodos(c.todos);
       }
+      setLoaded(true);
     });
   }, []);
 
-  useEffect(() => {
-    if (!client) return;
-    const refresh = async () => setDbTodos(await fetchTodos(client.slug));
-    refresh();
-    return subscribeClientChanges(client.slug, refresh);
-  }, [client]);
+  // Slug pour fetch les tâches DB : si pas de mock binding, on utilise user-{userId}
+  const slug = client?.slug || (session?.userId ? `user-${session.userId}` : '');
 
-  if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
-  if (session?.role === 'lead') {
+  useEffect(() => {
+    if (!slug) return;
+    const refresh = async () => setDbTodos(await fetchTodos(slug));
+    refresh();
+    return subscribeClientChanges(slug, refresh);
+  }, [slug]);
+
+  if (!loaded || !session) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session.role === 'lead') {
     return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Liste des tâches"><></></RoleGate>;
   }
 
@@ -71,6 +77,14 @@ export default function TodosPage() {
         </div>
       </div>
 
+      {all.length === 0 ? (
+        <EmptyState
+          icon={CheckSquare}
+          title="Aucune tâche pour l'instant"
+          description="Ton account manager Omniscale t'enverra des tâches à compléter (préparer un brief, valider un visuel, fournir des photos, etc.) directement ici."
+          cta={{ label: 'Connecte tes comptes en attendant', href: '/dashboard/connections' }}
+        />
+      ) : (
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
         {visible.map((t) => (
           <button key={t.id} onClick={() => toggle(t)} className="w-full flex items-start gap-4 p-5 text-left hover:bg-white/5 transition-colors">
@@ -94,6 +108,7 @@ export default function TodosPage() {
         ))}
         {visible.length === 0 && <div className="p-12 text-center text-white/50 italic">Aucune tâche dans ce filtre.</div>}
       </div>
+      )}
     </main>
   );
 }

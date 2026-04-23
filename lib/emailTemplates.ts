@@ -86,11 +86,31 @@ export function templateNewTask(opts: { clientName: string; taskTitle: string; d
   });
 }
 
+/** URL pour ajouter un événement à Google Calendar en un clic (sans OAuth). */
+export function buildGCalUrl(opts: { eventTitle: string; startsAt: string; duration: number; with?: string; type?: string }): string {
+  try {
+    const start = new Date(opts.startsAt);
+    const end = new Date(start.getTime() + opts.duration * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const url = new URL('https://www.google.com/calendar/render');
+    url.searchParams.set('action', 'TEMPLATE');
+    url.searchParams.set('text', `Omniscale — ${opts.eventTitle}`);
+    url.searchParams.set('dates', `${fmt(start)}/${fmt(end)}`);
+    const typeLabels: Record<string, string> = { call: 'Appel visio', shooting: 'Shooting', review: 'Revue', workshop: 'Atelier' };
+    const details = `${typeLabels[opts.type || ''] || 'Événement'} avec ${opts.with || 'Omniscale'}.\n\nLien visio envoyé par email avant le RDV.\n\nDes questions ? contact@omniscale.fr`;
+    url.searchParams.set('details', details);
+    return url.toString();
+  } catch {
+    return '#';
+  }
+}
+
 export function templateNewEvent(opts: { clientName: string; eventTitle: string; startsAt: string; duration: number; type: string; with: string }) {
   const d = new Date(opts.startsAt);
   const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
   const typeLabels: Record<string, string> = { call: '📞 Appel visio', shooting: '🎬 Shooting', review: '🔎 Revue', workshop: '🎓 Atelier' };
+  const gcalUrl = buildGCalUrl(opts);
   return shell({
     preheader: `RDV planifié : ${opts.eventTitle} — ${date} à ${time}`,
     title: `Nouveau rendez-vous planifié 📅`,
@@ -104,6 +124,9 @@ export function templateNewEvent(opts: { clientName: string; eventTitle: string;
         <p style="margin:8px 0;color:#aaa;">${typeLabels[opts.type] || opts.type}</p>
         <p style="margin:8px 0;color:#aaa;">👥 Avec : <strong style="color:#fff;">${opts.with}</strong></p>
       </div>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${gcalUrl}" style="display:inline-block;background:rgba(183,148,232,0.12);border:1px solid rgba(183,148,232,0.4);color:#B794E8;padding:10px 18px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">📅 Ajouter à Google Calendar</a>
+      </p>
       <p>Le lien visio te sera envoyé peu avant le RDV.</p>
     `,
     ctaLabel: 'Voir mon agenda',

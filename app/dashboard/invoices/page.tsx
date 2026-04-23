@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Download, CheckCircle2, Clock, Receipt, Send } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
-import { CLIENTS, getClientBySlug, formatCurrency } from '@/lib/mockData';
+import { ClientData, getClientBySlug, formatCurrency } from '@/lib/mockData';
 import RoleGate from '@/components/RoleGate';
 import { listInvoicesForClient, subscribeInvoices, computeTotals, InvoiceDoc } from '@/lib/invoicesStore';
 import { downloadPDF } from '@/lib/pdfGenerator';
@@ -10,25 +10,30 @@ import Card from '@/components/dashboard/Card';
 
 export default function ClientInvoicesPage() {
   const [session, setSession] = useState<Session | null>(null);
-  const [client, setClient] = useState(CLIENTS[0]);
+  const [client, setClient] = useState<ClientData | null>(null);
   const [invoices, setInvoices] = useState<InvoiceDoc[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getSessionAsync().then((s) => {
       if (!s) return;
       setSession(s);
-      const c = s.clientSlug ? getClientBySlug(s.clientSlug) : CLIENTS[0];
-      setClient(c || CLIENTS[0]);
+      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || null);
+      setLoaded(true);
     });
   }, []);
 
+  const slug = client?.slug || (session?.userId ? `user-${session.userId}` : '');
+
   useEffect(() => {
-    const refresh = async () => setInvoices(await listInvoicesForClient(client.slug));
+    if (!slug) return;
+    const refresh = async () => setInvoices(await listInvoicesForClient(slug));
     refresh();
     return subscribeInvoices(refresh);
-  }, [client]);
+  }, [slug]);
 
-  if (session?.role === 'lead') {
+  if (!loaded || !session) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session.role === 'lead') {
     return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Mes factures"><></></RoleGate>;
   }
 

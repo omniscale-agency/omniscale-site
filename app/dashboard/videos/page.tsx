@@ -2,9 +2,10 @@
 import { useEffect, useState } from 'react';
 import { Eye, Heart, MessageCircle, Share2, Video as VideoIcon, ExternalLink } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
-import { CLIENTS, ClientData, getClientBySlug, formatNumber } from '@/lib/mockData';
+import { formatNumber } from '@/lib/mockData';
 import { fetchRealSocialData, RealVideo } from '@/lib/socialReal';
 import RoleGate from '@/components/RoleGate';
+import EmptyState from '@/components/dashboard/EmptyState';
 
 const PLATFORM_COLORS: Record<string, string> = {
   instagram: 'from-fuchsia-500 to-orange-500',
@@ -28,38 +29,32 @@ interface UnifiedVideo {
 
 export default function VideosPage() {
   const [session, setSession] = useState<Session | null>(null);
-  const [client, setClient] = useState<ClientData | null>(null);
   const [realVideos, setRealVideos] = useState<RealVideo[]>([]);
   const [filter, setFilter] = useState<'all' | 'instagram' | 'tiktok' | 'youtube'>('all');
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
       const s = await getSessionAsync();
       if (!s) return;
       setSession(s);
-      setClient((s.clientSlug && getClientBySlug(s.clientSlug)) || CLIENTS[0]);
       const real = await fetchRealSocialData();
       setRealVideos(real.videos);
+      setLoaded(true);
     })();
   }, []);
 
-  if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
-  if (session?.role === 'lead') {
+  if (!loaded || !session) return <div className="p-12 text-white/60">Chargement…</div>;
+  if (session.role === 'lead') {
     return <RoleGate userRole={session.role} allowed={['client', 'admin']} feature="Bibliothèque vidéos"><></></RoleGate>;
   }
 
-  // Si on a des vraies vidéos importées, on les affiche en premier (priorité), sinon mock.
-  const unified: UnifiedVideo[] = realVideos.length > 0
-    ? realVideos.map((v) => ({
-        id: v.id, title: v.title, platform: v.platform, publishedAt: v.publishedAt,
-        views: v.views, likes: v.likes, comments: v.comments, shares: v.shares,
-        thumbnailUrl: v.thumbnailUrl, permalink: v.permalink, isReal: true,
-      }))
-    : client.videos.map((v) => ({
-        id: v.id, title: v.title, platform: v.platform, publishedAt: v.publishedAt,
-        views: v.views, likes: v.likes, comments: v.comments, shares: v.shares,
-        thumbnailUrl: undefined, permalink: undefined, isReal: false,
-      }));
+  // Vraies vidéos importées (via OAuth) en priorité. Pas de fallback mock pour les nouveaux users.
+  const unified: UnifiedVideo[] = realVideos.map((v) => ({
+    id: v.id, title: v.title, platform: v.platform, publishedAt: v.publishedAt,
+    views: v.views, likes: v.likes, comments: v.comments, shares: v.shares,
+    thumbnailUrl: v.thumbnailUrl, permalink: v.permalink, isReal: true,
+  }));
 
   const visible = filter === 'all' ? unified : unified.filter(v => v.platform === filter);
   const totalViews = unified.reduce((s, v) => s + v.views, 0);
@@ -80,6 +75,15 @@ export default function VideosPage() {
         <p className="text-white/60 mt-2">{unified.length} vidéos · {formatNumber(totalViews)} vues cumulées</p>
       </div>
 
+      {unified.length === 0 ? (
+        <EmptyState
+          icon={VideoIcon}
+          title="Aucune vidéo importée"
+          description="Connecte tes comptes Instagram, TikTok ou YouTube pour importer automatiquement tes vidéos et leurs stats en temps réel ici."
+          cta={{ label: 'Connecter mes comptes', href: '/dashboard/connections' }}
+        />
+      ) : (
+      <>
       <div className="flex gap-2 mb-6">
         {(['all', 'tiktok', 'instagram', 'youtube'] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
@@ -134,6 +138,8 @@ export default function VideosPage() {
           );
         })}
       </div>
+      </>
+      )}
     </main>
   );
 }
