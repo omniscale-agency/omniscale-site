@@ -64,8 +64,11 @@ export async function saveCompanySettings(settings: CompanySettings) {
 
 export function subscribeCompany(cb: () => void): () => void {
   const sb = supabaseBrowser();
+  const uniq = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const ch = sb
-    .channel('company-changes')
+    .channel(`company-changes-${uniq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'company_settings' }, () => cb())
     .subscribe();
   return () => { sb.removeChannel(ch); };

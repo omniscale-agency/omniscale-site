@@ -145,18 +145,27 @@ export async function fetchAllEvents(): Promise<Event[]> {
 export function subscribeAllEvents(cb: () => void): () => void {
   const sb = supabaseBrowser();
   const ch = sb
-    .channel('events-all')
+    .channel(`events-all-${uniqueId()}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => cb())
     .subscribe();
   return () => { sb.removeChannel(ch); };
 }
 
 // ---------- REALTIME SUBSCRIPTION ----------
+/** Génère un suffix unique pour éviter la collision de noms de channel
+ *  (Supabase Realtime réutilise les channels par nom — si deux composants
+ *  s'abonnent au même nom, le second échoue avec
+ *  "cannot add postgres_changes callbacks after subscribe()"). */
+function uniqueId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 /** Subscribe aux changements live des todos + events d'un client. Renvoie unsubscribe. */
 export function subscribeClientChanges(clientSlug: string, cb: () => void): () => void {
   const sb = supabaseBrowser();
   const ch = sb
-    .channel(`client-${clientSlug}`)
+    .channel(`client-${clientSlug}-${uniqueId()}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'todos', filter: `client_slug=eq.${clientSlug}` }, () => cb())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `client_slug=eq.${clientSlug}` }, () => cb())
     .subscribe();

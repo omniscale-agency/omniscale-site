@@ -117,8 +117,13 @@ export function computeTotals(lines: InvoiceLine[], vatRate: number) {
 
 export function subscribeInvoices(cb: () => void): () => void {
   const sb = supabaseBrowser();
+  // Suffix unique : Supabase Realtime réutilise les channels par nom global,
+  // donc deux composants qui s'abonnent au même nom font crasher le second.
+  const uniq = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const ch = sb
-    .channel('invoices-changes')
+    .channel(`invoices-changes-${uniq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => cb())
     .subscribe();
   return () => { sb.removeChannel(ch); };

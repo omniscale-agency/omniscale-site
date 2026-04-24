@@ -72,8 +72,13 @@ export async function deleteObjective(id: string) {
 /** Subscribe live aux objectifs d'un client. Renvoie unsubscribe. */
 export function subscribeObjectives(clientSlug: string, cb: () => void): () => void {
   const sb = supabaseBrowser();
+  // Suffix unique pour éviter la collision de noms entre plusieurs composants
+  // qui s'abonnent au même slug (cf. notes dans sharedStore).
+  const uniq = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const ch = sb
-    .channel(`objectives-${clientSlug}`)
+    .channel(`objectives-${clientSlug}-${uniq}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'objectives', filter: `client_slug=eq.${clientSlug}` },

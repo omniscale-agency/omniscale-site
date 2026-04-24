@@ -236,8 +236,11 @@ export async function deleteUser(email: string) {
 
 export function subscribeUsers(cb: () => void): () => void {
   const sb = supabaseBrowser();
+  const uniq = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const channel = sb
-    .channel('profiles-changes')
+    .channel(`profiles-changes-${uniq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => cb())
     .subscribe();
   return () => { sb.removeChannel(channel); };

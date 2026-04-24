@@ -55,8 +55,11 @@ export async function disconnectPlatform(platform: Platform): Promise<boolean> {
 
 export function subscribeConnections(cb: () => void): () => void {
   const sb = supabaseBrowser();
+  const uniq = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
   const ch = sb
-    .channel('connections-changes')
+    .channel(`connections-changes-${uniq}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => cb())
     .subscribe();
   return () => { sb.removeChannel(ch); };
