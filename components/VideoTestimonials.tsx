@@ -11,7 +11,7 @@ interface VideoTestimonial {
   result: string;
 }
 
-// Liste des témoignages vidéo. Ajoute les 4 autres au fur et à mesure.
+// Liste des témoignages vidéo. Ajoute les 2 autres au fur et à mesure.
 const VIDEOS: Array<VideoTestimonial | null> = [
   {
     src: '/videos/testimonials/1.mp4',
@@ -20,8 +20,20 @@ const VIDEOS: Array<VideoTestimonial | null> = [
     role: 'Boutique de mode • Lyon',
     result: 'x10 sur le CA en ligne',
   },
-  null, // slot 2 — à remplir
-  null, // slot 3
+  {
+    src: '/videos/testimonials/2.mp4',
+    poster: '/videos/testimonials/2-poster.jpg',
+    name: 'Lucas',
+    role: 'Créateur de contenu',
+    result: '+18k abonnés en 3 mois',
+  },
+  {
+    src: '/videos/testimonials/3.mp4',
+    poster: '/videos/testimonials/3-poster.jpg',
+    name: 'Camille',
+    role: 'Pâtisserie artisanale',
+    result: 'Boutique remplie tous les week-ends',
+  },
   null, // slot 4
   null, // slot 5
 ];
