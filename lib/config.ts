@@ -37,11 +37,15 @@ export function youtubeWatchUrl(id: string): string {
 // TikTok showreel — vidéos clients réelles
 // ============================================================
 // Pour ajouter / retirer des vidéos : édite ce tableau.
-// `thumbnail` pointe vers une image dans /public/images/showreel.
-// `url` doit être l'URL TikTok publique (clic = ouvre dans un nouvel onglet).
+// `src` pointe vers une vidéo dans /public/videos/showreel (auto-play
+// dans la marquee + modale en grand au clic).
+// `thumbnail` (poster) pointe vers une image dans /public/images/showreel.
+// `url` est l'URL TikTok publique (utilisé pour le bouton "Voir sur TikTok"
+// dans la modale, et pour le crédit auteur).
 export interface TikTokVideo {
-  url: string;
+  src: string;
   thumbnail: string;
+  url: string;
   author: string;        // nom du compte / marque (affiché en haut de la card)
   title: string;         // caption / accroche (affiché en bas)
   category?: string;     // facultatif : "TikTok viral", "Pub Meta", etc.
@@ -50,6 +54,7 @@ export interface TikTokVideo {
 export const TIKTOK_VIDEOS: TikTokVideo[] = [
   {
     url: 'https://www.tiktok.com/@ocroustipoulet/video/7626793485940673814',
+    src: '/videos/showreel/tt-0.mp4',
     thumbnail: '/images/showreel/tt-0.jpg',
     author: "O'Crousti Poulet",
     title: 'Alerte générale — menus solo à 2€',
@@ -57,6 +62,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7617108532713852182',
+    src: '/videos/showreel/tt-1.mp4',
     thumbnail: '/images/showreel/tt-1.jpg',
     author: 'French Retailers Men',
     title: 'Va-t-il trouver le juste prix ?',
@@ -64,6 +70,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7613839046338546967',
+    src: '/videos/showreel/tt-2.mp4',
     thumbnail: '/images/showreel/tt-2.jpg',
     author: 'French Retailers Men',
     title: 'Loupé...',
@@ -71,6 +78,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7611976991528750358',
+    src: '/videos/showreel/tt-3.mp4',
     thumbnail: '/images/showreel/tt-3.jpg',
     author: 'French Retailers Men',
     title: 'Je ressors en bénef',
@@ -78,6 +86,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@turbopneus/video/7502490035443207446',
+    src: '/videos/showreel/tt-4.mp4',
     thumbnail: '/images/showreel/tt-4.jpg',
     author: 'Turbo Pneus',
     title: 'En amont 2800€, en aval 2000 balles',
@@ -85,6 +94,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7624634414185647382',
+    src: '/videos/showreel/tt-5.mp4',
     thumbnail: '/images/showreel/tt-5.jpg',
     author: 'French Retailers Men',
     title: 'Va-t-il réussir à faire sa tenue ?',
@@ -92,6 +102,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@mira.activewear/video/7627919114828369174',
+    src: '/videos/showreel/tt-6.mp4',
     thumbnail: '/images/showreel/tt-6.jpg',
     author: 'MIRA Activewear',
     title: 'MIRA × Mercedes-Benz — Pilates',
@@ -99,6 +110,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@sashasouthside/video/7568164849876765974',
+    src: '/videos/showreel/tt-7.mp4',
     thumbnail: '/images/showreel/tt-7.jpg',
     author: 'Sasha Southside',
     title: 'Mon client est venu pour tout couper',
@@ -106,6 +118,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7628662333577039127',
+    src: '/videos/showreel/tt-8.mp4',
     thumbnail: '/images/showreel/tt-8.jpg',
     author: 'French Retailers Men',
     title: '@coachella where is the invitation ?',
@@ -113,6 +126,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7629449624524295446',
+    src: '/videos/showreel/tt-9.mp4',
     thumbnail: '/images/showreel/tt-9.jpg',
     author: 'French Retailers Men',
     title: 'Prépare avec nous une commande client',
@@ -120,6 +134,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@frenchretailersmen/video/7621541292060806422',
+    src: '/videos/showreel/tt-10.mp4',
     thumbnail: '/images/showreel/tt-10.jpg',
     author: 'French Retailers Men',
     title: 'Grande braderie du 26 au 29 mars',
@@ -127,6 +142,7 @@ export const TIKTOK_VIDEOS: TikTokVideo[] = [
   },
   {
     url: 'https://www.tiktok.com/@karamelculture/video/7622371565337840918',
+    src: '/videos/showreel/tt-11.mp4',
     thumbnail: '/images/showreel/tt-11.jpg',
     author: 'Karamel Culture',
     title: 'Tag French Retailers Men 🤍',
