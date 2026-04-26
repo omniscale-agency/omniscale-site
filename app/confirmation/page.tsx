@@ -2,10 +2,11 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, CheckCircle2, Video, Mail, Youtube } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Mail, Youtube } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
 import YouTubeVideosGrid from '@/components/YouTubeVideosGrid';
+import VideoTestimonials from '@/components/VideoTestimonials';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
 import { capture } from '@/lib/analytics';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -246,28 +247,31 @@ function ConfirmationContent() {
           ))}
         </motion.div>
 
-        {/* Vidéo de félicitations (format horizontal 16:9) */}
+        {/* Vidéo de bienvenue de Rayan (16:9) — autoplay muet, contrôles, son au clic */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, delay: 0.3 }}
-          className="mb-12 rounded-3xl overflow-hidden border border-lilac/20 bg-gradient-to-br from-omni-900/30 to-black relative aspect-video shadow-2xl shadow-lilac/10"
+          className="mb-3"
         >
-          {/* TODO: remplacer par la vraie vidéo de félicitations */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-            <div className="w-20 h-20 rounded-full bg-lilac/20 border border-lilac/40 flex items-center justify-center mb-5 animate-pulse">
-              <Video className="text-lilac" size={32} />
-            </div>
-            <div className="font-display text-2xl md:text-3xl font-bold mb-2">
-              Un petit mot de l'équipe
-            </div>
-            <div className="text-white/60 text-sm max-w-md">
-              Vidéo de bienvenue à venir — l'équipe Omniscale t'accueille personnellement
-              avant l'appel.
-            </div>
+          <div className="relative aspect-video rounded-3xl overflow-hidden border border-lilac/20 bg-black shadow-2xl shadow-lilac/10">
+            <video
+              src="/videos/confirmation/rayan-welcome.mp4"
+              poster="/videos/confirmation/rayan-welcome-poster.jpg"
+              controls
+              autoPlay
+              muted
+              playsInline
+              preload="metadata"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
           </div>
-          <div className="absolute inset-0 halftone-dense opacity-20 pointer-events-none" />
+          <p className="text-xs text-white/40 mt-2 text-center">
+            Un mot de Rayan, fondateur d'Omniscale — clique sur le son pour entendre 🔊
+          </p>
         </motion.div>
+        <div className="mb-12" />
+
 
         {/* Details card (Date, Heure, Email — sans Format ni Visio) */}
         <motion.div
@@ -396,6 +400,9 @@ function ConfirmationContent() {
           />
         </motion.section>
       </div>
+
+      {/* === Avis clients vidéo (5 témoignages) — full-width === */}
+      <VideoTestimonials />
 
       {/* === Socials + footer (retour dans container narrow) === */}
       <div className="relative max-w-3xl mx-auto px-6 pb-12 md:pb-20">

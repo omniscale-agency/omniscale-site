@@ -11,7 +11,9 @@ interface VideoTestimonial {
   result: string;
 }
 
-// Liste des témoignages vidéo. Ajoute les 2 autres au fur et à mesure.
+// Liste des témoignages vidéo — 5 clients réels. Pour ajouter / retirer,
+// edit ce tableau. Les fichiers .mp4 + posters sont dans
+// /public/videos/testimonials.
 const VIDEOS: Array<VideoTestimonial | null> = [
   {
     src: '/videos/testimonials/1.mp4',
@@ -34,8 +36,20 @@ const VIDEOS: Array<VideoTestimonial | null> = [
     role: 'Pâtisserie artisanale',
     result: 'Boutique remplie tous les week-ends',
   },
-  null, // slot 4
-  null, // slot 5
+  {
+    src: '/videos/testimonials/4.mp4',
+    poster: '/videos/testimonials/4-poster.jpg',
+    name: 'Maxime',
+    role: 'E-commerce mode',
+    result: 'x4 sur les conversions',
+  },
+  {
+    src: '/videos/testimonials/5.mp4',
+    poster: '/videos/testimonials/5-poster.jpg',
+    name: 'Sophie',
+    role: 'Atelier créatif',
+    result: 'Listes d\'attente complètes',
+  },
 ];
 
 export default function VideoTestimonials() {
