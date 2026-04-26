@@ -9,6 +9,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | Role>('all');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const refresh = async () => setUsers(await listUsers());
@@ -43,7 +45,14 @@ export default function AdminUsersPage() {
   };
 
   const onDelete = async (email: string) => {
-    await deleteUser(email);
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await deleteUser(email);
+    setDeleting(false);
+    if (!res.ok) {
+      setDeleteError(res.error || 'Erreur inconnue');
+      return;
+    }
     setConfirmDelete(null);
     setUsers(await listUsers());
   };
@@ -147,18 +156,38 @@ export default function AdminUsersPage() {
       </div>
 
       {confirmDelete && (
-        <div onClick={() => setConfirmDelete(null)} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div onClick={(e) => e.stopPropagation()} className="bg-black border border-red-500/30 rounded-2xl p-6 max-w-sm">
+        <div onClick={() => { if (!deleting) { setConfirmDelete(null); setDeleteError(null); } }} className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div onClick={(e) => e.stopPropagation()} className="bg-black border border-red-500/30 rounded-2xl p-6 max-w-md w-full">
             <div className="flex items-start gap-3 mb-4">
               <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
               <div>
                 <h3 className="font-display font-bold text-lg mb-1">Supprimer cet utilisateur ?</h3>
-                <p className="text-sm text-white/60">{confirmDelete} sera supprimé définitivement.</p>
+                <p className="text-sm text-white/60">
+                  <span className="text-white font-mono">{confirmDelete}</span> sera supprimé définitivement
+                  (compte auth + profil + tâches + RDV + objectifs). L'email redevient libre pour une nouvelle inscription.
+                </p>
               </div>
             </div>
+            {deleteError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300">
+                {deleteError}
+              </div>
+            )}
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="text-sm px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10">Annuler</button>
-              <button onClick={() => onDelete(confirmDelete)} className="text-sm px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600">Supprimer</button>
+              <button
+                onClick={() => { setConfirmDelete(null); setDeleteError(null); }}
+                disabled={deleting}
+                className="text-sm px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => onDelete(confirmDelete)}
+                disabled={deleting}
+                className="text-sm px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {deleting ? 'Suppression…' : 'Supprimer définitivement'}
+              </button>
             </div>
           </div>
         </div>

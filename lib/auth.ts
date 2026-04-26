@@ -228,10 +228,28 @@ export async function updateUser(
   if (cur && cur.email === email) await getSessionAsync();
 }
 
-export async function deleteUser(email: string) {
-  const sb = supabaseBrowser();
-  // Supprime juste le profil (l'auth user est conservé en BDD Supabase Auth — pour le purger faut la service_role key)
-  await sb.from('profiles').delete().eq('email', email);
+/**
+ * Supprime un user end-to-end (auth.users + profile + cascade).
+ * Passe par l'API server-side qui détient la service_role key — la suppression
+ * du profil seul (ancien comportement) laissait l'auth.users en place et
+ * bloquait l'email pour toute future inscription.
+ * @returns { ok, error? } — affiche l'erreur côté admin si présent.
+ */
+export async function deleteUser(email: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/admin/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, error: j.error || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Erreur réseau' };
+  }
 }
 
 export function subscribeUsers(cb: () => void): () => void {
