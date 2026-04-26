@@ -49,6 +49,44 @@ export const METRIC_BY_KEY: Record<string, MetricDef> = Object.fromEntries(
 );
 
 // ============================================================
+// KPIs CALCULÉS automatiquement à partir d'autres KPIs
+// ============================================================
+// Pour ajouter une formule : ajoute une entrée. Le moteur recalcule
+// automatiquement la valeur dérivée chaque fois qu'un input change.
+// La cellule du KPI dérivé devient en lecture seule dans l'admin.
+
+export interface DerivedRule {
+  key: MetricKey;
+  inputs: MetricKey[];
+  /** Renvoie la valeur calculée, ou null si manquant / non calculable. */
+  compute: (vals: Record<string, number>) => number | null;
+  hint: string;
+}
+
+export const DERIVED_RULES: DerivedRule[] = [
+  {
+    key: 'roas',
+    inputs: ['ad_revenue', 'ad_spend'],
+    compute: (v) => (v.ad_spend > 0 ? Math.round((v.ad_revenue / v.ad_spend) * 100) / 100 : null),
+    hint: 'ROAS = CA pub ÷ Dépense pub',
+  },
+  {
+    key: 'avg_order',
+    inputs: ['revenue', 'conversions'],
+    compute: (v) => (v.conversions > 0 ? Math.round(v.revenue / v.conversions) : null),
+    hint: 'Panier moyen = CA total ÷ Conversions',
+  },
+];
+
+export function isDerivedKey(key: MetricKey): boolean {
+  return DERIVED_RULES.some((r) => r.key === key);
+}
+
+export function getDerivedRule(key: MetricKey): DerivedRule | undefined {
+  return DERIVED_RULES.find((r) => r.key === key);
+}
+
+// ============================================================
 // Types DB
 // ============================================================
 export interface ClientMetric {
@@ -147,6 +185,57 @@ export async function upsertMetric(opts: {
 export async function deleteMetric(id: string) {
   const sb = supabaseBrowser();
   await sb.from('client_metrics').delete().eq('id', id);
+}
+
+/**
+ * Recalcule TOUS les KPIs dérivés (ROAS, panier moyen, etc.) pour une période donnée.
+ *
+ * À appeler après chaque save d'un KPI brut côté admin : si tous les inputs d'une
+ * règle sont présents pour cette période, on upsert la valeur calculée. Si un input
+ * vient à manquer (admin a supprimé la cellule), on supprime aussi le dérivé pour
+ * éviter d'afficher une valeur stale.
+ *
+ * `metricsForPeriod` est optionnel — si fourni, on s'épargne un fetch.
+ */
+export async function recomputeDerivedForPeriod(
+  clientSlug: string,
+  period: string,
+  metricsForPeriod?: ClientMetric[],
+): Promise<void> {
+  let metrics = metricsForPeriod;
+  if (!metrics) {
+    const sb = supabaseBrowser();
+    const { data } = await sb
+      .from('client_metrics')
+      .select('*')
+      .eq('client_slug', clientSlug)
+      .eq('period', period);
+    metrics = (data || []).map(fromDB);
+  }
+
+  const byKey: Record<string, number> = {};
+  metrics.forEach((m) => { byKey[m.metric] = m.value; });
+
+  for (const rule of DERIVED_RULES) {
+    const allInputsPresent = rule.inputs.every((k) => k in byKey);
+    if (!allInputsPresent) {
+      // Inputs manquants → on supprime l'éventuelle valeur dérivée stale
+      const stale = metrics.find((m) => m.metric === rule.key);
+      if (stale) await deleteMetric(stale.id);
+      continue;
+    }
+    const computed = rule.compute(byKey);
+    if (computed === null) continue;
+    const existing = metrics.find((m) => m.metric === rule.key);
+    if (existing && existing.value === computed) continue; // no-op
+    await upsertMetric({
+      clientSlug,
+      period,
+      metric: rule.key,
+      value: computed,
+      unit: METRIC_BY_KEY[rule.key]?.unit ?? '',
+    });
+  }
 }
 
 // ============================================================

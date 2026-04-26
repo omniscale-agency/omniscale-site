@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, Plus, Trash2, ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { TrendingUp, Plus, Trash2, ChevronLeft, ChevronRight, Calculator } from 'lucide-react';
 import {
-  fetchMetrics, upsertMetric, deleteMetric, subscribeMetrics,
+  fetchMetrics, upsertMetric, deleteMetric, subscribeMetrics, recomputeDerivedForPeriod,
   ClientMetric, MetricKey, METRIC_CATALOG, METRIC_BY_KEY, monthKey,
+  isDerivedKey, getDerivedRule,
 } from '@/lib/metricsStore';
 import Card from '@/components/dashboard/Card';
 
@@ -56,6 +57,7 @@ export default function MetricsEditor({ slug }: Props) {
   }, [metrics]);
 
   const startEdit = (metric: MetricKey, period: string, currentValue?: number) => {
+    if (isDerivedKey(metric)) return; // verrouillé
     setEditingCell(`${metric}-${period}`);
     setDraftValue(currentValue !== undefined ? String(currentValue) : '');
   };
@@ -72,12 +74,16 @@ export default function MetricsEditor({ slug }: Props) {
       return;
     }
     await upsertMetric({ clientSlug: slug, period, metric, value: v });
+    // Recalcule les dérivés (ROAS, panier moyen…) pour ce mois
+    await recomputeDerivedForPeriod(slug, period);
     cancelEdit();
   };
 
-  const removeCell = async (id: string) => {
+  const removeCell = async (id: string, period: string) => {
     if (!confirm('Supprimer cette valeur ?')) return;
     await deleteMetric(id);
+    // Si on supprime un input d'une formule, le dérivé devient stale → on nettoie
+    await recomputeDerivedForPeriod(slug, period);
   };
 
   const groupedKeys = useMemo(() => {
@@ -158,13 +164,26 @@ export default function MetricsEditor({ slug }: Props) {
                 </tr>
                 {keys.map((mk) => {
                   const def = METRIC_BY_KEY[mk]!;
+                  const derivedRule = getDerivedRule(mk);
+                  const isDerived = !!derivedRule;
                   return (
                     <tr key={mk} className="hover:bg-white/[0.02]">
                       <td className="px-3 py-2 sticky left-0 bg-black z-10 border-t border-white/5">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-white/90">{def.label}</span>
+                          <span className={`font-medium ${isDerived ? 'text-lilac/80' : 'text-white/90'}`}>{def.label}</span>
                           <span className="text-[10px] text-white/30">{def.unit}</span>
+                          {isDerived && (
+                            <span
+                              title={derivedRule.hint}
+                              className="inline-flex items-center gap-0.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-lilac/15 text-lilac border border-lilac/30"
+                            >
+                              <Calculator size={9} /> auto
+                            </span>
+                          )}
                         </div>
+                        {isDerived && (
+                          <div className="text-[10px] text-white/30 mt-0.5">{derivedRule.hint}</div>
+                        )}
                       </td>
                       {months.map((m) => {
                         const period = monthKey(m);
@@ -174,8 +193,9 @@ export default function MetricsEditor({ slug }: Props) {
                         return (
                           <td
                             key={period}
-                            className="px-2 py-1 text-center border-t border-white/5 group cursor-pointer"
-                            onClick={() => !editing && startEdit(mk, period, found?.value)}
+                            className={`px-2 py-1 text-center border-t border-white/5 group ${isDerived ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            onClick={() => !editing && !isDerived && startEdit(mk, period, found?.value)}
+                            title={isDerived ? `${derivedRule.hint} — calculé automatiquement` : undefined}
                           >
                             {editing ? (
                               <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
@@ -195,15 +215,23 @@ export default function MetricsEditor({ slug }: Props) {
                               </div>
                             ) : found ? (
                               <div className="flex items-center justify-center gap-1.5">
-                                <span className="font-mono text-sm text-white">{fmt(found.value, def.unit)}</span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); removeCell(found.id); }}
-                                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-white/40 hover:text-red-400"
-                                  title="Supprimer"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
+                                <span className={`font-mono text-sm ${isDerived ? 'text-lilac' : 'text-white'}`}>
+                                  {fmt(found.value, def.unit)}
+                                </span>
+                                {!isDerived && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); removeCell(found.id, period); }}
+                                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-white/40 hover:text-red-400"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                )}
                               </div>
+                            ) : isDerived ? (
+                              <span className="text-white/20 inline-flex items-center gap-1 text-[10px]" title="Saisis les KPIs d'entrée pour calculer automatiquement">
+                                <Calculator size={10} /> —
+                              </span>
                             ) : (
                               <span className="text-white/20 group-hover:text-lilac inline-flex items-center gap-1 text-xs">
                                 <Plus size={11} /> ajouter
@@ -221,9 +249,10 @@ export default function MetricsEditor({ slug }: Props) {
         </table>
       </div>
 
-      <div className="text-[11px] text-white/40 mt-4 leading-relaxed">
-        💡 Clique sur une cellule pour saisir une valeur. Entrée = sauvegarde, Échap = annule.
-        Les valeurs apparaissent instantanément sur le dashboard du client (graphiques + KPI).
+      <div className="text-[11px] text-white/40 mt-4 leading-relaxed space-y-1">
+        <div>💡 Clique sur une cellule pour saisir. Entrée = sauvegarde, Échap = annule.</div>
+        <div>🧮 Les KPIs <span className="text-lilac">marqués "auto"</span> (ROAS, panier moyen…) se calculent tout seuls dès que tu saisis leurs entrées (CA pub + Dépense pub → ROAS).</div>
+        <div>⚡ Les valeurs apparaissent instantanément sur le dashboard du client (StatCards, bar chart, badge "live").</div>
       </div>
     </Card>
   );
