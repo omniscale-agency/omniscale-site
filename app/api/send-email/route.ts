@@ -4,10 +4,12 @@ import {
   templateNewTask, templateNewEvent, templateNewInvoice,
   templateNewLeadAdmin, templateWelcomeLead,
   templateCancelTask, templateCancelEvent,
+  templateBookingConfirmed,
 } from '@/lib/emailTemplates';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM_VERIFIED = 'Omniscale <noreply@omniscale.fr>';
+// Adresse principale (visible "From") — branded contact@omniscale.fr
+const FROM_VERIFIED = 'Omniscale <contact@omniscale.fr>';
 const FROM_FALLBACK = 'Omniscale <onboarding@resend.dev>';
 const REPLY_TO = 'contact@omniscale.fr';
 const ADMIN_EMAIL = 'admin@omniscale.fr';
@@ -45,6 +47,10 @@ export async function POST(req: NextRequest) {
       case 'event_cancelled':
         subject = `RDV annulé : ${data.eventTitle}`;
         html = templateCancelEvent(data as any);
+        break;
+      case 'booking_confirmed':
+        subject = `Ton appel Omniscale est confirmé 🎉`;
+        html = templateBookingConfirmed(data as any);
         break;
       case 'invoice':
         subject = `${data.type === 'payment_request' ? 'Demande de paiement' : 'Facture'} ${data.invoiceId} — Omniscale`;

@@ -174,6 +174,68 @@ export function templateCancelEvent(opts: { clientName: string; eventTitle: stri
   });
 }
 
+export function templateBookingConfirmed(opts: {
+  clientName: string;
+  eventTitle?: string;
+  startsAt: string;          // ISO date
+  endsAt?: string;           // ISO date (pour calculer la durée)
+  closer?: string;
+  meetingUrl?: string;
+}) {
+  const d = new Date(opts.startsAt);
+  const date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  const dur = opts.endsAt
+    ? Math.round((new Date(opts.endsAt).getTime() - d.getTime()) / 60000)
+    : 45;
+  const title = opts.eventTitle || 'Appel découverte';
+  const gcalUrl = buildGCalUrl({
+    eventTitle: title,
+    startsAt: opts.startsAt,
+    duration: dur,
+    with: opts.closer,
+    type: 'call',
+  });
+  return shell({
+    preheader: `RDV confirmé : ${title} — ${date} à ${time} (Paris)`,
+    title: `Ton appel Omniscale est confirmé 🎉`,
+    body: `
+      <p>Salut ${opts.clientName.split(' ')[0] || opts.clientName},</p>
+      <p>Top, ton créneau est bloqué ! On a hâte d'échanger avec toi pour <strong style="color:#fff;">auditer ton business et te donner les leviers concrets pour scaler</strong>.</p>
+
+      <div style="margin:28px 0;padding:24px;background:rgba(183,148,232,0.08);border:1px solid rgba(183,148,232,0.25);border-radius:14px;">
+        <p style="margin:0 0 14px;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#B794E8;font-weight:700;">Ton rendez-vous</p>
+        <p style="margin:0 0 16px;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.3px;">${title}</p>
+        <p style="margin:6px 0;color:#aaa;font-size:14px;">📆 <strong style="color:#fff;text-transform:capitalize;">${date}</strong> à <strong style="color:#fff;">${time}</strong> <span style="color:#666;">(heure de Paris)</span></p>
+        <p style="margin:6px 0;color:#aaa;font-size:14px;">⏱ Durée : <strong style="color:#fff;">${dur} minutes</strong></p>
+        ${opts.closer ? `<p style="margin:6px 0;color:#aaa;font-size:14px;">👥 Avec : <strong style="color:#fff;">${opts.closer}</strong></p>` : ''}
+        ${opts.meetingUrl ? `<p style="margin:14px 0 0;font-size:13px;"><a href="${opts.meetingUrl}" style="color:#B794E8;text-decoration:none;">→ Rejoindre la visio</a></p>` : ''}
+      </div>
+
+      <p style="text-align:center;margin:24px 0;">
+        <a href="${gcalUrl}" style="display:inline-block;background:rgba(183,148,232,0.12);border:1px solid rgba(183,148,232,0.4);color:#B794E8;padding:11px 20px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">📅 Ajouter à Google Calendar</a>
+      </p>
+
+      <p style="margin-top:32px;font-weight:600;color:#fff;">Pour préparer l'appel, on va parler de :</p>
+      <ul style="margin:12px 0 24px;padding-left:18px;color:#cbb8e0;line-height:1.9;font-size:14px;">
+        <li><strong style="color:#fff;">Ton business actuel</strong> — secteur, CA, ce qui marche, ce qui bloque</li>
+        <li><strong style="color:#fff;">Ton acquisition</strong> — d'où viennent tes clients aujourd'hui, ce qui te fait grandir</li>
+        <li><strong style="color:#fff;">Ton plan d'action</strong> — 3 leviers concrets activables sous 30 jours, chiffrés</li>
+      </ul>
+
+      <div style="margin:28px 0;padding:18px;background:rgba(255,255,255,0.03);border-left:3px solid #B794E8;border-radius:0 10px 10px 0;">
+        <p style="margin:0 0 6px;font-size:13px;color:#fff;font-weight:600;">⚡ Sans pression commerciale</p>
+        <p style="margin:0;font-size:13px;color:#aaa;line-height:1.6;">Tu repars avec de la valeur, point. Si tu veux qu'on bosse ensemble derrière, parfait. Sinon, aucun problème.</p>
+      </div>
+
+      <p style="font-size:13px;color:#888;margin-top:28px;">Besoin de modifier ou annuler ? Réponds simplement à cet email ou écris à <a href="mailto:contact@omniscale.fr" style="color:#B794E8;">contact@omniscale.fr</a>.</p>
+      <p style="font-size:13px;color:#888;">À très vite,<br>L'équipe Omniscale</p>
+    `,
+    ctaLabel: 'Accéder à mon espace client',
+    ctaUrl: `${BASE_URL}/dashboard`,
+  });
+}
+
 export function templateNewInvoice(opts: { clientName: string; invoiceId: string; amount: string; dueAt: string; type: 'invoice' | 'payment_request' }) {
   const isReq = opts.type === 'payment_request';
   const due = new Date(opts.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });

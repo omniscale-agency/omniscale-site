@@ -9,6 +9,7 @@ import YouTubeVideosGrid from '@/components/YouTubeVideosGrid';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
 import { capture } from '@/lib/analytics';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { sendEmail } from '@/lib/sendEmail';
 
 function formatDate(iso: string) {
   if (!iso) return { date: '', time: '' };
@@ -116,6 +117,28 @@ function ConfirmationContent() {
       },
       { onConflict: 'external_id' },
     );
+
+    // Email de confirmation Omniscale (remplace celui d'iClosed — qui doit être désactivé
+    // côté iClosed pour éviter le doublon). On envoie une seule fois par (email, start)
+    // grâce à un flag localStorage.
+    if (email && start) {
+      const dedupeKey = `omni-booking-mail-${email}-${start}`;
+      const alreadySent = typeof window !== 'undefined' && localStorage.getItem(dedupeKey);
+      if (!alreadySent) {
+        sendEmail('booking_confirmed', email, {
+          clientName: fullName || email.split('@')[0],
+          eventTitle: eventName,
+          startsAt: new Date(start).toISOString(),
+          endsAt: end ? new Date(end).toISOString() : undefined,
+          closer: closer || undefined,
+          meetingUrl: sp.get('meeting_url') || sp.get('location') || undefined,
+        }).then((res) => {
+          if (res.ok && typeof window !== 'undefined') {
+            try { localStorage.setItem(dedupeKey, new Date().toISOString()); } catch {}
+          }
+        }).catch(() => {});
+      }
+    }
   }, [mounted, email, start, end, fullName, eventName, closer, phone, bookingId, sp]);
 
   const { date, time } = formatDate(start);
