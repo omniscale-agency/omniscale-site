@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Calendar, Clock, CheckCircle2, Video, Mail, Youtube } from 'lucide-react';
 import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
+import YouTubeVideosGrid from '@/components/YouTubeVideosGrid';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
 import { capture } from '@/lib/analytics';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -355,6 +356,21 @@ function ConfirmationContent() {
           >
             <Youtube size={18} /> Accéder à la chaîne YouTube d'Omniscale
           </a>
+        </motion.section>
+
+        {/* Dernières vidéos YouTube — pour réchauffer en attendant le RDV */}
+        <motion.section
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.6 }}
+          className="mb-16"
+        >
+          <YouTubeVideosGrid
+            title="En attendant, regarde nos dernières vidéos"
+            subtitle="Méthodes, cas clients, breakdowns — pour arriver préparé au RDV"
+            animated
+          />
         </motion.section>
       </div>
 

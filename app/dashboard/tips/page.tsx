@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Lightbulb, Clock, ChevronDown, Sparkles, Play } from 'lucide-react';
 import { TIPS, CATEGORY_LABELS, CATEGORY_COLORS, Tip } from '@/lib/tips';
 import { getSessionAsync, Session } from '@/lib/auth';
+import YouTubeVideosGrid from '@/components/YouTubeVideosGrid';
 
 export default function TipsPage() {
   const [openId, setOpenId] = useState<string | null>(TIPS[0]?.id || null);
@@ -29,28 +30,7 @@ export default function TipsPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 mb-8">
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div>
-            <h2 className="font-display font-bold text-xl mb-1 inline-flex items-center gap-2">
-              <Play size={18} className="text-lilac" /> Notre chaîne YouTube
-            </h2>
-            <p className="text-sm text-white/50">Cas clients, frameworks, breakdowns de campagnes</p>
-          </div>
-          <a href="https://www.youtube.com/@omniscale.agency" target="_blank" rel="noopener noreferrer" className="text-sm text-lilac hover:underline">
-            Voir la chaîne →
-          </a>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="aspect-video rounded-xl border border-white/10 bg-gradient-to-br from-omni-700/20 to-black flex items-center justify-center group cursor-pointer hover:border-lilac/40 transition-colors">
-              <div className="w-12 h-12 rounded-full bg-lilac/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Play size={18} fill="currentColor" className="text-ink ml-0.5" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <YouTubeVideosGrid className="mb-8" />
 
       <div className="flex flex-wrap gap-2 mb-6">
         <button onClick={() => setFilter('all')}
