@@ -1,38 +1,56 @@
 'use client';
 import { motion } from 'framer-motion';
-import LazyVideo from './LazyVideo';
+import { ExternalLink } from 'lucide-react';
+import { TIKTOK_VIDEOS, TikTokVideo } from '@/lib/config';
 
-const row1 = [
-  { title: 'Boutique mode — Lyon', cat: 'Reels Instagram' },
-  { title: 'Restaurant gastro — Paris', cat: 'TikTok viral' },
-  { title: 'E-shop cosmétiques', cat: 'Pub Meta' },
-  { title: 'Concept store', cat: 'UGC Influence' },
-  { title: 'Brasserie locale', cat: 'Reels' },
-];
+// Split en 2 rangées (alternées) pour la double marquee
+const half = Math.ceil(TIKTOK_VIDEOS.length / 2);
+const row1 = TIKTOK_VIDEOS.slice(0, half);
+const row2 = TIKTOK_VIDEOS.slice(half);
 
-const row2 = [
-  { title: 'Marque sportwear', cat: 'Campagne 360°' },
-  { title: 'Bijouterie — Marseille', cat: 'TikTok' },
-  { title: 'Coffee shop', cat: 'Reels lifestyle' },
-  { title: 'Salon de beauté', cat: 'UGC' },
-  { title: 'Marque DTC', cat: 'Ads Meta' },
-];
-
-function VideoCard({ title, cat }: { title: string; cat: string }) {
+function VideoCard({ video }: { video: TikTokVideo }) {
   return (
-    <div className="video-card w-[220px] md:w-[280px]" data-cursor-hover>
-      <LazyVideo
-        src="/videos/showreel.mp4"
-        poster="/videos/showreel-poster.jpg"
-        className="absolute inset-0 w-full h-full object-cover"
+    <a
+      href={video.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-cursor-hover
+      className="video-card group w-[220px] md:w-[280px] block"
+      title={`${video.author} — ${video.title} (ouvre TikTok)`}
+    >
+      {/* Thumbnail réelle TikTok */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={video.thumbnail}
+        alt={`${video.author} — ${video.title}`}
+        loading="lazy"
+        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
       />
+
+      {/* Gradient bottom pour lisibilité */}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
 
-      <div className="absolute bottom-0 left-0 right-0 p-5 pointer-events-none">
-        <div className="text-[10px] uppercase tracking-widest text-lilac mb-1">{cat}</div>
-        <div className="font-display font-bold text-base text-white leading-tight">{title}</div>
+      {/* Badge TikTok + lien externe en haut à droite */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+        <span className="text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-white border border-white/10">
+          TikTok
+        </span>
+        <span className="w-7 h-7 rounded-full bg-black/60 backdrop-blur flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+          <ExternalLink size={12} />
+        </span>
       </div>
-    </div>
+
+      {/* Texte bas */}
+      <div className="absolute bottom-0 left-0 right-0 p-5 pointer-events-none">
+        {video.category && (
+          <div className="text-[10px] uppercase tracking-widest text-lilac mb-1">{video.category}</div>
+        )}
+        <div className="font-display font-bold text-base text-white leading-tight line-clamp-2 mb-1">
+          {video.title}
+        </div>
+        <div className="text-[11px] text-white/70 truncate">@{video.author}</div>
+      </div>
+    </a>
   );
 }
 
@@ -63,7 +81,7 @@ export default function Showreel() {
           <p className="text-white/60 max-w-md">
             Une sélection de vidéos qu'on a produites pour nos clients. Reels,
             TikTok, pub Meta, UGC : tout est shooté, monté et publié par notre
-            équipe.
+            équipe. <span className="text-white/40">Clique sur une card pour voir la vidéo en entier sur TikTok.</span>
           </p>
         </motion.div>
       </div>
@@ -72,10 +90,9 @@ export default function Showreel() {
       <div className="relative mb-6">
         <div className="video-marquee">
           {[...row1, ...row1].map((v, i) => (
-            <VideoCard key={`r1-${i}`} {...v} />
+            <VideoCard key={`r1-${i}`} video={v} />
           ))}
         </div>
-        {/* Fade edges */}
         <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-black to-transparent z-10" />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-black to-transparent z-10" />
       </div>
@@ -84,7 +101,7 @@ export default function Showreel() {
       <div className="relative">
         <div className="video-marquee reverse">
           {[...row2, ...row2].map((v, i) => (
-            <VideoCard key={`r2-${i}`} {...v} />
+            <VideoCard key={`r2-${i}`} video={v} />
           ))}
         </div>
         <div className="pointer-events-none absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-black to-transparent z-10" />
@@ -97,7 +114,7 @@ export default function Showreel() {
           className="inline-flex items-center gap-2 text-white/70 hover:text-lilac transition-colors text-sm"
         >
           <span className="w-8 h-px bg-lilac" />
-          Tu veux le même type de contenu pour ton commerce ?
+          Tu veux le même type de contenu pour ton commerce&nbsp;?
         </a>
       </div>
     </section>
