@@ -10,12 +10,16 @@ import { CLIENTS, ClientData, formatNumber, formatCurrency, getClientBySlug } fr
 import { generateSeries, generateWithCompare, RangeKey, sumSeries, deltaPct, compareDelta } from '@/lib/timeseries';
 import { fetchTodos, fetchEvents, subscribeClientChanges, Todo, Event } from '@/lib/sharedStore';
 import { fetchObjectives, subscribeObjectives, Objective } from '@/lib/objectivesStore';
+import {
+  fetchMetrics, subscribeMetrics, ClientMetric, latestByMetric, trendForMetric,
+} from '@/lib/metricsStore';
 import { fetchRealSocialData, RealSocialData } from '@/lib/socialReal';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
 import RangePicker from '@/components/dashboard/RangePicker';
 import AreaChartCard from '@/components/dashboard/AreaChartCard';
 import StackedAreaChartCard from '@/components/dashboard/StackedAreaChartCard';
+import MonthlyMetricsCard from '@/components/dashboard/MonthlyMetricsCard';
 
 function relativeTime(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -50,6 +54,7 @@ export default function ClientDashboard() {
   const [extraTodos, setExtraTodos] = useState<Todo[]>([]);
   const [extraEvents, setExtraEvents] = useState<Event[]>([]);
   const [dbObjectives, setDbObjectives] = useState<Objective[]>([]);
+  const [dbMetrics, setDbMetrics] = useState<ClientMetric[]>([]);
   const [real, setReal] = useState<RealSocialData>({ connections: {}, videos: [] });
   const [loaded, setLoaded] = useState(false);
 
@@ -74,19 +79,22 @@ export default function ClientDashboard() {
   useEffect(() => {
     if (!extrasSlug) return;
     const refresh = async () => {
-      const [t, e, o] = await Promise.all([
+      const [t, e, o, m] = await Promise.all([
         fetchTodos(extrasSlug),
         fetchEvents(extrasSlug),
         fetchObjectives(extrasSlug),
+        fetchMetrics(extrasSlug),
       ]);
       setExtraTodos(t);
       setExtraEvents(e);
       setDbObjectives(o);
+      setDbMetrics(m);
     };
     refresh();
     const offChanges = subscribeClientChanges(extrasSlug, refresh);
     const offObj = subscribeObjectives(extrasSlug, refresh);
-    return () => { offChanges(); offObj(); };
+    const offMetrics = subscribeMetrics(extrasSlug, refresh);
+    return () => { offChanges(); offObj(); offMetrics(); };
   }, [extrasSlug]);
 
   const series = useMemo(() => {
@@ -137,6 +145,17 @@ export default function ClientDashboard() {
           </a>
         </div>
 
+        {/* KPIs réels saisis par l'admin (si présents) */}
+        {dbMetrics.length > 0 && (
+          <div className="mb-8">
+            <div className="mb-4 inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              Chiffres réels mis à jour par ton account manager
+            </div>
+            <MonthlyMetricsCard metrics={dbMetrics} />
+          </div>
+        )}
+
         {/* Tâches/RDV envoyés par admin (les extras) */}
         {(extraTodos.length > 0 || extraEvents.length > 0) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -181,11 +200,30 @@ export default function ClientDashboard() {
   );
   const todosOpen = allTodos.filter((t) => !t.done);
 
-  const totalViews = sumSeries(series, 'views');
-  const viewsDelta = deltaPct(series, 'views');
-  const adRevenue = sumSeries(series, 'adRevenue');
-  const adSpend = sumSeries(series, 'adSpend');
-  const roas = adSpend > 0 ? adRevenue / adSpend : 0;
+  const seedTotalViews = sumSeries(series, 'views');
+  const seedViewsDelta = deltaPct(series, 'views');
+  const seedAdRevenue = sumSeries(series, 'adRevenue');
+  const seedAdSpend = sumSeries(series, 'adSpend');
+  const seedRoas = seedAdSpend > 0 ? seedAdRevenue / seedAdSpend : 0;
+
+  // === KPIs RÉELS (saisis par admin) > priorité sur les seed-mock ===
+  const latestMetrics = latestByMetric(dbMetrics);
+  const viewsTrend = trendForMetric(dbMetrics, 'views');
+  const followersGainedTrend = trendForMetric(dbMetrics, 'followers_gained');
+  const roasTrend = trendForMetric(dbMetrics, 'roas');
+  const engagementTrend = trendForMetric(dbMetrics, 'engagement_rate');
+
+  const totalViews = latestMetrics['views']?.value ?? seedTotalViews;
+  const viewsDelta = viewsTrend.deltaPct ?? seedViewsDelta;
+  const adRevenue = latestMetrics['ad_revenue']?.value ?? seedAdRevenue;
+  const adSpend = latestMetrics['ad_spend']?.value ?? seedAdSpend;
+  const roas = latestMetrics['roas']?.value ?? (adSpend > 0 ? adRevenue / adSpend : seedRoas);
+  const engagementRate = latestMetrics['engagement_rate']?.value ?? client.stats.engagementRate;
+  const followersGained = latestMetrics['followers_gained']?.value
+    ?? (client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained);
+
+  // Badge "live" si on a au moins une métrique réelle
+  const hasRealMetrics = dbMetrics.length > 0;
 
   const isFromDB = (id: string) => !id.match(/^t\d+$|^e\d+$/); // les IDs de mockData sont t1, e1...
 
@@ -215,12 +253,24 @@ export default function ClientDashboard() {
         </div>
       </div>
 
+      {hasRealMetrics && (
+        <div className="mb-4 inline-flex items-center gap-2 text-xs px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          Chiffres réels mis à jour par ton account manager
+        </div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Vues sur la période" value={formatNumber(totalViews)} delta={viewsDelta} icon={Eye} accent="lilac" />
-        <StatCard label="Abonnés gagnés" value={`+${formatNumber(client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained)}`} delta={18} icon={Users} accent="green" />
-        <StatCard label="ROAS Meta" value={`x${roas.toFixed(1)}`} delta={deltaPct(series, 'adRevenue')} icon={TrendingUp} accent="amber" />
-        <StatCard label="Engagement moyen" value={`${client.stats.engagementRate}%`} delta={3} icon={Heart} accent="pink" />
+        <StatCard label="Vues" value={formatNumber(totalViews)} delta={viewsDelta} icon={Eye} accent="lilac" />
+        <StatCard label="Abonnés gagnés" value={`+${formatNumber(Math.round(followersGained))}`} delta={followersGainedTrend.deltaPct ?? 18} icon={Users} accent="green" />
+        <StatCard label="ROAS Meta" value={`x${roas.toFixed(1)}`} delta={roasTrend.deltaPct ?? deltaPct(series, 'adRevenue')} icon={TrendingUp} accent="amber" />
+        <StatCard label="Engagement moyen" value={`${engagementRate}%`} delta={engagementTrend.deltaPct ?? 3} icon={Heart} accent="pink" />
       </div>
+
+      {hasRealMetrics && (
+        <div className="mb-8">
+          <MonthlyMetricsCard metrics={dbMetrics} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AreaChartCard

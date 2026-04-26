@@ -14,6 +14,7 @@ import SendActionsBar from '@/components/admin/SendActionsBar';
 import ObjectivesEditor from '@/components/admin/ObjectivesEditor';
 import ClientTodosCard from '@/components/admin/ClientTodosCard';
 import ClientEventsCard from '@/components/admin/ClientEventsCard';
+import MetricsEditor from '@/components/admin/MetricsEditor';
 
 export default function ClientDetailView({ slug }: { slug: string }) {
   const [row, setRow] = useState<AdminClientRow | null>(null);
@@ -133,15 +134,25 @@ export default function ClientDetailView({ slug }: { slug: string }) {
             <ObjectivesEditor slug={extrasSlug} />
             <ClientTodosCard mockTodos={client.todos} extraTodos={extras.todos} clientEmail={clientEmail} clientName={clientName} />
           </div>
+
+          {/* KPIs mensuels — saisie manuelle, apparaît sur le dashboard client */}
+          <div className="mb-8">
+            <MetricsEditor slug={extrasSlug} />
+          </div>
         </>
       )}
 
-      {/* Pas de mock data : objectifs + tâches + RDV (tout vient de la DB) */}
+      {/* Pas de mock data : objectifs + tâches + RDV + KPIs (tout vient de la DB) */}
       {!client && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ObjectivesEditor slug={extrasSlug} />
-          <ClientTodosCard mockTodos={[]} extraTodos={extras.todos} clientEmail={clientEmail} clientName={clientName} />
-        </div>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <ObjectivesEditor slug={extrasSlug} />
+            <ClientTodosCard mockTodos={[]} extraTodos={extras.todos} clientEmail={clientEmail} clientName={clientName} />
+          </div>
+          <div className="mb-8">
+            <MetricsEditor slug={extrasSlug} />
+          </div>
+        </>
       )}
 
       {client && (
