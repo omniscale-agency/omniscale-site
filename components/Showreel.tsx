@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Volume2, VolumeX, ExternalLink } from 'lucide-react';
+import { X, Volume2, VolumeX } from 'lucide-react';
 import { TIKTOK_VIDEOS, TikTokVideo } from '@/lib/config';
 
 const half = Math.ceil(TIKTOK_VIDEOS.length / 2);
@@ -162,27 +162,16 @@ function VideoLightbox({ video, onClose }: { video: TikTokVideo; onClose: () => 
           </button>
         )}
 
-        {/* Footer infos */}
+        {/* Footer infos (titre + auteur, pas de redirect TikTok) */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none">
-          <div className="flex items-end justify-between gap-3 pointer-events-auto">
-            <div className="min-w-0 flex-1">
-              {video.category && (
-                <div className="text-[10px] uppercase tracking-widest text-lilac mb-0.5">{video.category}</div>
-              )}
-              <div className="font-display font-bold text-base text-white leading-tight line-clamp-2 mb-0.5">
-                {video.title}
-              </div>
-              <div className="text-[11px] text-white/70 truncate">@{video.author}</div>
+          <div className="min-w-0">
+            {video.category && (
+              <div className="text-[10px] uppercase tracking-widest text-lilac mb-0.5">{video.category}</div>
+            )}
+            <div className="font-display font-bold text-base text-white leading-tight line-clamp-2 mb-0.5">
+              {video.title}
             </div>
-            <a
-              href={video.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-full bg-white/10 hover:bg-lilac hover:text-ink text-white border border-white/20 transition-colors"
-              title="Voir cette vidéo sur TikTok"
-            >
-              <ExternalLink size={12} /> TikTok
-            </a>
+            <div className="text-[11px] text-white/70 truncate">@{video.author}</div>
           </div>
         </div>
       </motion.div>
