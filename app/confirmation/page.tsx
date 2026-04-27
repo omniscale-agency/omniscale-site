@@ -7,6 +7,7 @@ import Logo from '@/components/Logo';
 import Socials from '@/components/Socials';
 import YouTubeVideosGrid from '@/components/YouTubeVideosGrid';
 import VideoTestimonials from '@/components/VideoTestimonials';
+import TrustpilotBadge from '@/components/TrustpilotBadge';
 import { CONTACT_EMAIL, YOUTUBE_URL } from '@/lib/config';
 import { capture } from '@/lib/analytics';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -403,6 +404,11 @@ function ConfirmationContent() {
 
       {/* === Avis clients vidéo (5 témoignages) — full-width === */}
       <VideoTestimonials />
+
+      {/* === Trustpilot card (social proof avant socials) === */}
+      <div className="relative max-w-md mx-auto px-6 pb-8">
+        <TrustpilotBadge variant="card" />
+      </div>
 
       {/* === Socials + footer (retour dans container narrow) === */}
       <div className="relative max-w-3xl mx-auto px-6 pb-12 md:pb-20">

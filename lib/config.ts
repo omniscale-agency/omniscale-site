@@ -9,6 +9,17 @@ export const LINKEDIN_URL = 'https://www.linkedin.com/in/omniscale-agency-bb0b35
 export const TIKTOK_URL = 'https://www.tiktok.com/@omniscale.fr';
 export const YOUTUBE_URL = 'https://www.youtube.com/@omniscale.agency';
 
+// Trustpilot — note d'avis publique
+// À mettre à jour quand le score change (ou fetch dynamique plus tard via leur API)
+export const TRUSTPILOT = {
+  url: 'https://fr.trustpilot.com/review/omniscale.fr',
+  reviewUrl: 'https://fr.trustpilot.com/evaluate/omniscale.fr',
+  rating: 4.0,
+  reviewCount: 4,
+  /** Label officiel Trustpilot — Excellent / Bien / Moyen / Mauvais / Médiocre */
+  label: 'Bien',
+} as const;
+
 // Liste des dernières vidéos YouTube (les plus récentes en premier).
 // Pour ajouter une vidéo : { id: 'YOUTUBE_VIDEO_ID', title: 'Titre' }.
 // Les `null` deviendront des cards "Bientôt" si on garde une grille de N slots.

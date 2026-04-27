@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUpRight, Calendar } from 'lucide-react';
 import TypewriterCycle from './TypewriterCycle';
 import Counter from './Counter';
 import { BOOKING_URL } from '@/lib/config';
+import TrustpilotBadge from './TrustpilotBadge';
 
 export default function Hero() {
   return (
@@ -79,6 +80,16 @@ export default function Hero() {
           >
             Voir le showreel
           </a>
+        </motion.div>
+
+        {/* Trustpilot — social proof juste sous le CTA principal */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.75 }}
+          className="mt-6"
+        >
+          <TrustpilotBadge variant="compact" />
         </motion.div>
 
         {/* Stats avec compteurs */}

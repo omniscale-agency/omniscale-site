@@ -1,6 +1,7 @@
 'use client';
 import Logo from './Logo';
 import Socials from './Socials';
+import TrustpilotBadge from './TrustpilotBadge';
 
 export default function Footer() {
   return (
@@ -34,6 +35,9 @@ export default function Footer() {
           <div>
             <div className="text-white font-semibold mb-4">Suivez-nous</div>
             <Socials size="sm" />
+            <div className="mt-6">
+              <TrustpilotBadge variant="compact" />
+            </div>
           </div>
         </div>
 
