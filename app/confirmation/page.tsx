@@ -268,7 +268,7 @@ function ConfirmationContent() {
             />
           </div>
           <p className="text-xs text-white/40 mt-2 text-center">
-            Un mot de Rayan, fondateur d'Omniscale — clique sur le son pour entendre 🔊
+            Un mot de l'équipe Omniscale — clique sur le son pour entendre 🔊
           </p>
         </motion.div>
         <div className="mb-12" />
