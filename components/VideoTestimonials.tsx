@@ -28,14 +28,14 @@ const VIDEOS: Array<VideoTestimonial | null> = [
     src: '/videos/testimonials/4.mp4',
     poster: '/videos/testimonials/4-poster.jpg',
     name: 'Maxime',
-    role: 'E-commerce mode',
-    result: 'x4 sur les conversions',
+    role: 'Agence de location',
+    result: '+30k € dès le premier mois',
   },
   {
     src: '/videos/testimonials/5.mp4',
     poster: '/videos/testimonials/5-poster.jpg',
     name: 'Sophie',
-    role: 'Atelier créatif',
+    role: 'Salon de coiffure',
     result: 'Listes d\'attente complètes',
   },
 ];
