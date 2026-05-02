@@ -11,9 +11,11 @@ interface VideoTestimonial {
   result: string;
 }
 
-// Liste des témoignages vidéo — 5 clients réels. Pour ajouter / retirer,
-// edit ce tableau. Les fichiers .mp4 + posters sont dans
-// /public/videos/testimonials.
+// Liste des témoignages vidéo affichés sur le site.
+// Pour ajouter de nouveaux avis : ajoute une entrée { src, poster, ... }
+// Les fichiers correspondants vont dans /public/videos/testimonials.
+// (Les vidéos 2 et 3 sont temporairement retirées en attendant plus
+// d'avis clients récents — fichiers conservés en local pour réactivation.)
 const VIDEOS: Array<VideoTestimonial | null> = [
   {
     src: '/videos/testimonials/1.mp4',
@@ -21,20 +23,6 @@ const VIDEOS: Array<VideoTestimonial | null> = [
     name: 'Philippe',
     role: 'Boutique de mode • Lyon',
     result: 'x10 sur le CA en ligne',
-  },
-  {
-    src: '/videos/testimonials/2.mp4',
-    poster: '/videos/testimonials/2-poster.jpg',
-    name: 'Lucas',
-    role: 'Créateur de contenu',
-    result: '+18k abonnés en 3 mois',
-  },
-  {
-    src: '/videos/testimonials/3.mp4',
-    poster: '/videos/testimonials/3-poster.jpg',
-    name: 'Camille',
-    role: 'Pâtisserie artisanale',
-    result: 'Boutique remplie tous les week-ends',
   },
   {
     src: '/videos/testimonials/4.mp4',
@@ -76,7 +64,7 @@ export default function VideoTestimonials() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
           {VIDEOS.map((v, i) =>
             v ? <VideoCard key={i} video={v} index={i} /> : <PlaceholderCard key={i} index={i} />
           )}
