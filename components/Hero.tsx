@@ -34,7 +34,9 @@ export default function Hero() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-lilac/30 bg-lilac/5 mb-8"
         >
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-sm text-white/80">Disponible — 2 places en avril 2026</span>
+          <span className="text-sm text-white/80">
+            Disponible — 2 places en {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+          </span>
         </motion.div>
 
         <motion.h1
