@@ -9,6 +9,7 @@
     "export": "next build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "framer-motion": "11.11.9",
