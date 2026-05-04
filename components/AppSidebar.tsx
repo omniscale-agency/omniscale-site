@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, CheckSquare, Video, Calendar, Target, Users,
   LogOut, Settings, TrendingUp, Menu, X, Filter, Wallet, Receipt,
-  Lightbulb, Plug, Sparkles, ArrowRight, BarChart3,
+  Lightbulb, Plug, Sparkles, ArrowRight, BarChart3, Linkedin,
 } from 'lucide-react';
 import Logo from './Logo';
 import { getSessionAsync, logout, Session, Role } from '@/lib/auth';
@@ -42,6 +42,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/analytics', label: 'Analytics & funnel', Icon: BarChart3 },
   { href: '/admin/finance', label: 'Trésorerie', Icon: Wallet },
   { href: '/admin/performance', label: 'Performance', Icon: TrendingUp },
+  { href: '/admin/integrations/linkedin', label: 'LinkedIn', Icon: Linkedin },
   { href: '/admin/settings', label: 'Paramètres entreprise', Icon: Settings },
 ];
 
