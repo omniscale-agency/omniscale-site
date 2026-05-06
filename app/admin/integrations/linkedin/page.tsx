@@ -33,14 +33,6 @@ interface LinkedInPost {
 
 type Tab = 'compose' | 'ai' | 'scheduled' | 'history' | 'live' | 'messages';
 
-interface LinkedInLivePost {
-  urn: string;
-  text: string;
-  createdAt: number | null;
-  visibility: string;
-  permalink: string;
-}
-
 interface AiMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -214,6 +206,7 @@ function LinkedInInner() {
               <button
                 key={k}
                 onClick={() => setTab(k)}
+                data-history-tab={k === 'history' ? '' : undefined}
                 className={`px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors ${
                   tab === k
                     ? 'bg-lilac text-ink font-semibold'
@@ -228,7 +221,7 @@ function LinkedInInner() {
           {tab === 'ai' && <AiTab onToast={setToast} />}
           {tab === 'compose' && <ComposeTab tokenExpired={!!tokenExpired} onToast={setToast} />}
           {tab === 'scheduled' && <ScheduledTab posts={scheduledPosts} onToast={setToast} onRefresh={refresh} />}
-          {tab === 'live' && <LivePostsTab onReconnect={startConnect} />}
+          {tab === 'live' && <LivePostsTab profileUrl="https://www.linkedin.com/in/omniscale-agency-bb0b35405/recent-activity/all/" />}
           {tab === 'history' && <HistoryTab posts={historyPosts} />}
           {tab === 'messages' && <MessagesTab />}
         </>
@@ -640,143 +633,81 @@ function HistoryTab({ posts }: { posts: LinkedInPost[] }) {
 }
 
 // ════════════════════════════════════════════════════════
-// Tab: Live posts (récupérés via API LinkedIn /v2/ugcPosts)
+// Tab: Live posts — limité par l'API LinkedIn
 // ════════════════════════════════════════════════════════
-function LivePostsTab({ onReconnect }: { onReconnect: () => void }) {
-  const [posts, setPosts] = useState<LinkedInLivePost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ kind: 'scope' | 'other'; msg: string } | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await fetch('/api/integrations/linkedin/recent-posts?count=30');
-      const j = await r.json();
-      if (!r.ok) {
-        if (j.error === 'scope_missing' || r.status === 403) {
-          setError({ kind: 'scope', msg: j.message || 'Permission insuffisante' });
-        } else {
-          setError({ kind: 'other', msg: j.message || j.error || `Erreur ${r.status}` });
-        }
-        setPosts([]);
-      } else {
-        setPosts(j.posts || []);
-      }
-    } catch (e: any) {
-      setError({ kind: 'other', msg: e?.message || 'Erreur réseau' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
+function LivePostsTab({ profileUrl }: { profileUrl: string }) {
   return (
     <Card
       title="Mes posts LinkedIn"
       icon={Linkedin}
-      subtitle="Tes derniers posts (publiés via le SaaS ou directement depuis LinkedIn) — fetch live API"
-      action={
-        <button
-          onClick={load}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-lilac/40 inline-flex items-center gap-1.5 disabled:opacity-50"
-        >
-          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
-      }
+      subtitle="Tous les posts publiés sur ton profil"
     >
-      {loading && (
-        <div className="py-12 text-center text-white/50 inline-flex items-center gap-2 justify-center w-full">
-          <RefreshCw size={14} className="animate-spin" /> Récupération depuis LinkedIn…
-        </div>
-      )}
-
-      {!loading && error?.kind === 'scope' && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+      <div className="space-y-5">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
           <div className="flex items-start gap-3">
             <AlertCircle size={20} className="text-amber-400 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <strong className="text-white block mb-1">Reconnexion nécessaire</strong>
-              <p className="text-sm text-white/70 leading-relaxed mb-3">
-                {error.msg}
+            <div className="flex-1 text-sm leading-relaxed">
+              <strong className="text-white block mb-1">Limitation API LinkedIn</strong>
+              <p className="text-white/70 mb-2">
+                LinkedIn ne permet pas de lister les posts d'un profil personnel via leur API
+                publique. Le scope <code className="text-lilac">r_member_social</code> nécessaire
+                est réservé aux partenaires « Marketing Developer Platform » (entreprises
+                approuvées par LinkedIn, processus long et restrictif).
               </p>
-              <p className="text-xs text-white/50 mb-4">
-                On a ajouté la permission <code className="text-lilac">r_member_social</code> qui
-                permet de lister tes posts via l'API LinkedIn. Reconnecte ton compte pour l'autoriser.
+              <p className="text-white/70">
+                Du coup, deux solutions complémentaires :
               </p>
-              <button
-                onClick={onReconnect}
-                className="inline-flex items-center gap-2 bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white font-semibold px-4 py-2 rounded-lg text-sm"
-              >
-                <Linkedin size={14} /> Reconnecter LinkedIn
-              </button>
             </div>
           </div>
         </div>
-      )}
 
-      {!loading && error?.kind === 'other' && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 inline-flex items-start gap-2">
-          <AlertCircle size={16} className="shrink-0 mt-0.5" />
-          <div>
-            <strong>Erreur API LinkedIn</strong>
-            <div className="mt-1 break-words">{error.msg}</div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <a
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl border border-[#0A66C2]/30 bg-[#0A66C2]/5 hover:bg-[#0A66C2]/10 transition-colors p-5 group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-[#0A66C2] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <Linkedin className="text-white" size={18} />
+            </div>
+            <div className="font-display font-bold mb-1 inline-flex items-center gap-1.5">
+              Voir tous mes posts sur LinkedIn <ExternalLink size={13} />
+            </div>
+            <p className="text-xs text-white/60">
+              Ouvre directement ton profil dans un nouvel onglet — tous tes posts y sont visibles
+              avec stats, likes et commentaires.
+            </p>
+          </a>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              const btn = (e.currentTarget as HTMLElement);
+              const parent = btn.closest('main')?.querySelector('[data-history-tab]') as HTMLButtonElement | null;
+              parent?.click();
+            }}
+            className="rounded-xl border border-lilac/30 bg-lilac/5 hover:bg-lilac/10 transition-colors p-5 group text-left"
+          >
+            <div className="w-10 h-10 rounded-lg bg-lilac flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+              <Eye className="text-ink" size={18} />
+            </div>
+            <div className="font-display font-bold mb-1">
+              Posts publiés via le SaaS
+            </div>
+            <p className="text-xs text-white/60">
+              Onglet « Historique SaaS » : tous les posts que tu as publiés ou programmés depuis
+              cette interface, avec leur statut (publié / échoué / brouillon) et lien direct.
+            </p>
+          </button>
         </div>
-      )}
 
-      {!loading && !error && posts.length === 0 && (
-        <div className="text-center py-12 text-white/50">
-          <Linkedin className="mx-auto mb-3 opacity-50" size={32} />
-          <p>Aucun post trouvé sur ton compte LinkedIn.</p>
-          <p className="text-xs mt-2">Publie ton premier post depuis l'onglet « Publier maintenant » ou via l'assistant IA.</p>
+        <div className="text-xs text-white/40 text-center pt-2">
+          Si LinkedIn ouvre un jour le scope <code>r_member_social</code> aux apps standard, on
+          activera l'affichage live ici sans reconnexion supplémentaire.
         </div>
-      )}
-
-      {!loading && !error && posts.length > 0 && (
-        <ul className="divide-y divide-white/5">
-          {posts.map((p) => (
-            <li key={p.urn} className="py-4 first:pt-0 last:pb-0">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#0A66C2]/15 border border-[#0A66C2]/30 flex items-center justify-center shrink-0">
-                  <Linkedin size={14} className="text-[#0A66C2]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm whitespace-pre-wrap text-white/90 leading-relaxed mb-2">
-                    {p.text || <span className="italic text-white/40">(post sans texte — image ou vidéo seule)</span>}
-                  </div>
-                  <div className="text-xs text-white/40 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {p.createdAt && (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock size={11} />
-                        {new Date(p.createdAt).toLocaleString('fr-FR', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </span>
-                    )}
-                    <span className="px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 uppercase text-[9px]">
-                      {p.visibility}
-                    </span>
-                    {p.permalink && (
-                      <a
-                        href={p.permalink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-lilac hover:underline inline-flex items-center gap-1"
-                      >
-                        <ExternalLink size={11} /> Voir sur LinkedIn
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      </div>
     </Card>
   );
 }
