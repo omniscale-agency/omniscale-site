@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck, RefreshCw, ExternalLink, Mail, Phone, Filter,
   Clock, CheckCircle2, XCircle, AlertCircle, Calendar, Bug, Sparkles,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, MoreVertical, Trash2, CalendarClock, Tag,
 } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -191,7 +191,7 @@ export default function AdminBookingsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((b) => (
-            <BookingCard key={b.id} booking={b} />
+            <BookingCard key={b.id} booking={b} onChange={loadBookings} />
           ))}
         </div>
       )}
@@ -397,13 +397,74 @@ function KpiTile({ label, value, accent }: { label: string; value: number; accen
   );
 }
 
-function BookingCard({ booking: b }: { booking: Booking }) {
+function BookingCard({ booking: b, onChange }: { booking: Booking; onChange: () => void }) {
   const meta = EVENT_META[b.event];
   const Icon = meta.Icon;
   const scheduledDate = b.scheduled_at ? new Date(b.scheduled_at) : null;
   const isUpcoming = scheduledDate && scheduledDate.getTime() > Date.now() && b.event !== 'cancelled';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string>('');
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 4000);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Supprimer définitivement le RDV de ${b.invitee_name || b.invitee_email || 'ce lead'} ?\n\nCette action ne supprime pas le RDV côté iClosed — fais-le aussi là-bas si nécessaire.`)) return;
+    setBusy(true);
+    setMenuOpen(false);
+    const sb = supabaseBrowser();
+    const { error } = await sb.from('bookings').delete().eq('id', b.id);
+    if (error) {
+      showToast(`Erreur : ${error.message}`);
+    } else {
+      showToast('✓ Booking supprimé');
+      onChange();
+    }
+    setBusy(false);
+  };
+
+  const handleReschedule = async (newDateTime: string) => {
+    setBusy(true);
+    const sb = supabaseBrowser();
+    const { error } = await sb
+      .from('bookings')
+      .update({
+        scheduled_at: new Date(newDateTime).toISOString(),
+        event: 'rescheduled',
+      })
+      .eq('id', b.id);
+    if (error) {
+      showToast(`Erreur : ${error.message}`);
+    } else {
+      showToast('✓ Reprogrammé (côté SaaS uniquement)');
+      onChange();
+    }
+    setBusy(false);
+    setRescheduleOpen(false);
+  };
+
+  const handleStatusChange = async (newStatus: BookingEvent) => {
+    setBusy(true);
+    const sb = supabaseBrowser();
+    const { error } = await sb.from('bookings').update({ event: newStatus }).eq('id', b.id);
+    if (error) {
+      showToast(`Erreur : ${error.message}`);
+    } else {
+      showToast(`✓ Statut → ${EVENT_META[newStatus].label}`);
+      onChange();
+    }
+    setBusy(false);
+    setStatusOpen(false);
+    setMenuOpen(false);
+  };
+
   return (
-    <div className={`rounded-2xl border ${isUpcoming ? 'border-lilac/30 bg-lilac/5' : 'border-white/10 bg-white/[0.02]'} p-5 hover:border-lilac/40 transition-colors`}>
+    <div className={`rounded-2xl border ${isUpcoming ? 'border-lilac/30 bg-lilac/5' : 'border-white/10 bg-white/[0.02]'} p-5 hover:border-lilac/40 transition-colors relative`}>
       <div className="flex flex-col md:flex-row md:items-start gap-4">
         {/* Date block */}
         <div className="md:w-32 shrink-0">
@@ -437,6 +498,65 @@ function BookingCard({ booking: b }: { booking: Booking }) {
                 À venir
               </span>
             )}
+            {/* Menu actions admin */}
+            <div className="ml-auto relative">
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                disabled={busy}
+                aria-label="Actions"
+                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 hover:border-lilac/40 hover:bg-lilac/10 inline-flex items-center justify-center text-white/60 hover:text-white transition-colors disabled:opacity-50"
+              >
+                <MoreVertical size={14} />
+              </button>
+              {menuOpen && (
+                <>
+                  <div onClick={() => setMenuOpen(false)} className="fixed inset-0 z-10" />
+                  <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-xl border border-white/10 bg-black shadow-xl overflow-hidden">
+                    <button
+                      onClick={() => { setMenuOpen(false); setRescheduleOpen(true); }}
+                      className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/5 inline-flex items-center gap-2"
+                    >
+                      <CalendarClock size={14} className="text-lilac" /> Reprogrammer
+                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setStatusOpen(!statusOpen)}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/5 inline-flex items-center justify-between gap-2"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Tag size={14} className="text-lilac" /> Changer le statut
+                        </span>
+                        <ChevronDown size={12} className={`text-white/40 transition-transform ${statusOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {statusOpen && (
+                        <div className="bg-white/[0.02] border-t border-white/5">
+                          {(Object.keys(EVENT_META) as BookingEvent[]).map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => handleStatusChange(s)}
+                              disabled={s === b.event}
+                              className={`w-full text-left px-3 py-2 pl-9 text-xs hover:bg-white/5 inline-flex items-center gap-2 ${s === b.event ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${EVENT_META[s].cls.split(' ')[0].replace('bg-', 'bg-').replace('/15', '')}`} />
+                              {EVENT_META[s].label}
+                              {s === b.event && <span className="ml-auto text-white/40">actuel</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-white/10">
+                      <button
+                        onClick={handleDelete}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-red-500/10 text-red-400 inline-flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Supprimer
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           <h3 className="font-display font-bold text-lg mb-1">{b.invitee_name || 'Nom non renseigné'}</h3>
@@ -484,6 +604,82 @@ function BookingCard({ booking: b }: { booking: Booking }) {
               <Clock size={11} /> reçu {new Date(b.received_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Toast inline */}
+      {toast && (
+        <div className="mt-3 text-xs px-3 py-2 rounded-lg bg-lilac/10 border border-lilac/30 text-lilac">
+          {toast}
+        </div>
+      )}
+
+      {/* Modale reprogrammation */}
+      {rescheduleOpen && (
+        <RescheduleModal
+          currentDate={b.scheduled_at}
+          inviteeName={b.invitee_name || b.invitee_email || 'ce lead'}
+          onClose={() => setRescheduleOpen(false)}
+          onConfirm={handleReschedule}
+        />
+      )}
+    </div>
+  );
+}
+
+function RescheduleModal({ currentDate, inviteeName, onClose, onConfirm }: {
+  currentDate: string | null;
+  inviteeName: string;
+  onClose: () => void;
+  onConfirm: (newDateTime: string) => void;
+}) {
+  const initial = currentDate ? new Date(currentDate) : new Date(Date.now() + 86400_000);
+  // Format pour input datetime-local : YYYY-MM-DDTHH:mm
+  const toLocalInputValue = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const [value, setValue] = useState(toLocalInputValue(initial));
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-lilac/30 bg-gradient-to-br from-omni-900 via-black to-black p-6 shadow-2xl"
+      >
+        <div className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-lilac mb-2">
+          <CalendarClock size={14} /> Reprogrammer
+        </div>
+        <h3 className="font-display font-bold text-xl mb-1">RDV avec {inviteeName}</h3>
+        <p className="text-xs text-white/50 mb-5">
+          Cette action met à jour la date côté SaaS uniquement. <strong className="text-amber-300">Pense à la modifier aussi côté iClosed</strong> si tu veux que le lead voie le changement (mail de notification, calendrier, etc.).
+        </p>
+
+        <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Nouvelle date & heure</label>
+        <input
+          type="datetime-local"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-lilac/50 [color-scheme:dark]"
+        />
+
+        <div className="flex justify-end gap-2 mt-6">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm bg-white/5 border border-white/10 hover:border-white/30 text-white/70"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm(value)}
+            disabled={!value}
+            className="px-4 py-2 rounded-lg text-sm bg-lilac text-ink font-semibold hover:bg-white disabled:opacity-50"
+          >
+            Confirmer la nouvelle date
+          </button>
         </div>
       </div>
     </div>
