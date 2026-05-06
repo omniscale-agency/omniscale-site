@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck, RefreshCw, ExternalLink, Mail, Phone, Filter,
-  Clock, CheckCircle2, XCircle, AlertCircle, Calendar,
+  Clock, CheckCircle2, XCircle, AlertCircle, Calendar, Bug, Sparkles,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { getSessionAsync, Session } from '@/lib/auth';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -194,7 +195,189 @@ export default function AdminBookingsPage() {
           ))}
         </div>
       )}
+
+      {/* Debug panel — visible uniquement à l'admin */}
+      <DebugPanel onSeeded={loadBookings} />
     </main>
+  );
+}
+
+// ════════════════════════════════════════════════════════
+// Panneau de debug — webhook logs + seed test booking
+// ════════════════════════════════════════════════════════
+interface WebhookLog {
+  id: string;
+  endpoint: string;
+  status_code: number | null;
+  result: string | null;
+  body_preview: string | null;
+  user_agent: string | null;
+  ip: string | null;
+  received_at: string;
+}
+
+function DebugPanel({ onSeeded }: { onSeeded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [logs, setLogs] = useState<WebhookLog[]>([]);
+  const [seeding, setSeeding] = useState(false);
+  const [toast, setToast] = useState<string>('');
+
+  const loadLogs = async () => {
+    const sb = supabaseBrowser();
+    const { data } = await sb
+      .from('webhook_logs')
+      .select('*')
+      .eq('endpoint', 'iclosed')
+      .order('received_at', { ascending: false })
+      .limit(20);
+    setLogs((data as WebhookLog[]) || []);
+  };
+
+  useEffect(() => {
+    if (open) loadLogs();
+  }, [open]);
+
+  const seed = async () => {
+    setSeeding(true);
+    try {
+      const r = await fetch('/api/dev/seed-booking', { method: 'POST' });
+      const j = await r.json();
+      if (r.ok) {
+        setToast('✓ Faux booking inséré. Tu devrais le voir apparaître dans la liste.');
+        onSeeded();
+      } else {
+        setToast(`Erreur : ${j.error || r.status}`);
+      }
+    } catch (e: any) {
+      setToast(`Erreur réseau : ${e?.message}`);
+    }
+    setSeeding(false);
+    setTimeout(() => setToast(''), 6000);
+  };
+
+  return (
+    <div className="mt-12 rounded-2xl border border-white/10 bg-white/[0.02]">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-5 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="inline-flex items-center gap-2">
+          <Bug size={16} className="text-amber-400" />
+          <span className="font-semibold">Outils de debug iClosed</span>
+          <span className="text-xs text-white/40">Logs webhook + test seed</span>
+        </div>
+        {open ? <ChevronUp size={18} className="text-white/40" /> : <ChevronDown size={18} className="text-white/40" />}
+      </button>
+
+      {open && (
+        <div className="px-5 pb-5 space-y-5 border-t border-white/5">
+          {/* Section 1 : Test seed */}
+          <div className="pt-5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-sm inline-flex items-center gap-2">
+                <Sparkles size={14} className="text-lilac" /> 1 · Vérifier que l'affichage marche
+              </h3>
+              <button
+                onClick={seed}
+                disabled={seeding}
+                className="inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-3 py-1.5 rounded-lg text-xs disabled:opacity-50"
+              >
+                {seeding ? <RefreshCw size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                Insérer un faux RDV
+              </button>
+            </div>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Insère un booking de test directement en DB (bypass webhook). Si tu le vois apparaître
+              dans la liste juste après → toute la chaîne d'affichage marche, le problème est uniquement
+              côté iClosed (webhook pas configuré ou secret mismatch).
+            </p>
+            {toast && (
+              <div className="mt-2 text-xs px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-300">
+                {toast}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2 : Webhook logs */}
+          <div className="pt-5 border-t border-white/5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-sm inline-flex items-center gap-2">
+                <Bug size={14} className="text-amber-400" /> 2 · Tentatives reçues sur le webhook
+              </h3>
+              <button
+                onClick={loadLogs}
+                className="text-xs px-2 py-1 rounded bg-white/5 border border-white/10 hover:border-lilac/30 inline-flex items-center gap-1"
+              >
+                <RefreshCw size={10} /> Refresh
+              </button>
+            </div>
+            {logs.length === 0 ? (
+              <div className="text-xs text-white/50 italic px-3 py-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                Aucune requête entrante loggée. Si t'es sûr d'avoir réservé un appel test sur iClosed
+                et que rien n'apparaît ici, c'est que <strong>iClosed n'arrive pas à toucher l'endpoint</strong>
+                (URL mal configurée, redirect 307/308 qui drop le POST).
+              </div>
+            ) : (
+              <ul className="space-y-1.5 max-h-80 overflow-y-auto">
+                {logs.map((l) => (
+                  <li key={l.id} className="text-xs rounded-lg bg-black/40 border border-white/5 p-2.5 font-mono">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-1.5 py-0.5 rounded font-semibold ${
+                        l.status_code === 200 ? 'bg-green-500/20 text-green-300' :
+                        l.status_code === 401 ? 'bg-red-500/20 text-red-300' :
+                        l.status_code === 400 ? 'bg-orange-500/20 text-orange-300' :
+                        'bg-white/10 text-white/60'
+                      }`}>
+                        {l.status_code}
+                      </span>
+                      <span className="text-white/80">{l.result}</span>
+                      <span className="text-white/40 ml-auto">{new Date(l.received_at).toLocaleString('fr-FR')}</span>
+                    </div>
+                    {l.user_agent && (
+                      <div className="text-white/50 truncate text-[10px]">UA: {l.user_agent}</div>
+                    )}
+                    {l.body_preview && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-white/40 text-[10px] hover:text-lilac">
+                          Voir body ({l.body_preview.length} chars)
+                        </summary>
+                        <pre className="mt-1 text-[10px] text-white/60 whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                          {l.body_preview}
+                        </pre>
+                      </details>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Section 3 : URL canonique */}
+          <div className="pt-5 border-t border-white/5">
+            <h3 className="font-semibold text-sm mb-2 inline-flex items-center gap-2">
+              <ExternalLink size={14} className="text-lilac" /> 3 · URL exacte à mettre dans iClosed
+            </h3>
+            <p className="text-xs text-white/50 mb-2">
+              Le domaine bare (omniscale.fr) renvoie un <strong>307 → www</strong>, et l'URL sans
+              trailing slash renvoie un <strong>308 → /iclosed/</strong>. Beaucoup de webhook
+              providers ne suivent pas les redirects et perdent le POST. Utilise l'URL canonique :
+            </p>
+            <code className="block px-3 py-2 rounded bg-black/60 border border-lilac/30 text-lilac text-xs break-all">
+              https://www.omniscale.fr/api/webhooks/iclosed/
+            </code>
+            <p className="text-xs text-white/40 mt-2">
+              Avec <strong>www</strong> ET <strong>trailing slash</strong>. Aucun redirect → aucun
+              risque que iClosed lâche le POST en route.
+            </p>
+            <p className="text-xs text-white/40 mt-2">
+              Pour le secret : ajoute le header <code className="text-lilac">X-Webhook-Secret: &lt;valeur&gt;</code>
+              {' '}OU le query param <code className="text-lilac">?secret=&lt;valeur&gt;</code>, et mets la même
+              valeur dans <code className="text-lilac">ICLOSED_WEBHOOK_SECRET</code> côté Vercel.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
