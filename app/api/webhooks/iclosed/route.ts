@@ -7,13 +7,23 @@
 //   Secret : ICLOSED_WEBHOOK_SECRET (vérifié via header X-Iclosed-Signature ou X-Webhook-Secret)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { supabaseServer } from '@/lib/supabase/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { captureServer } from '@/lib/analytics-server';
 
 export const runtime = 'nodejs';
 
 const SECRET = process.env.ICLOSED_WEBHOOK_SECRET || '';
+
+/** Service-role Supabase client — bypass RLS pour les writes côté webhook
+ *  (anon n'a pas SELECT sur bookings, donc upsert+select() échouait avec RLS violation). */
+function getAdminClient(): SupabaseClient | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 /** Loggue toute requête entrante (même 401) dans la table webhook_logs.
  *  Best-effort — n'échoue jamais. Permet de diagnostiquer ce qu'iClosed envoie. */
@@ -23,12 +33,8 @@ async function logIncoming(req: NextRequest, opts: {
   bodyPreview: string;
 }) {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) return;
-    const admin = createClient(url, key, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const admin = getAdminClient();
+    if (!admin) return;
     // On filtre les headers sensibles (secrets, auth) avant de logger
     const safeHeaders: Record<string, string> = {};
     req.headers.forEach((value, key) => {
@@ -122,7 +128,13 @@ export async function POST(req: NextRequest) {
   const utm = payload.utm || body.utm || {};
   const tracking = payload.tracking || body.tracking || {};
 
-  const sb = await supabaseServer();
+  // On utilise le service-role pour bypass RLS — anon a INSERT mais pas SELECT
+  // sur bookings, donc l'upsert+select() échoue sinon avec une RLS violation.
+  const sb = getAdminClient();
+  if (!sb) {
+    await logIncoming(req, { status: 500, result: 'missing_service_role_key', bodyPreview: rawBody });
+    return NextResponse.json({ error: 'Server misconfigured: SUPABASE_SERVICE_ROLE_KEY missing' }, { status: 500 });
+  }
 
   // Si même booking (même externalId) → on update, sinon insert
   const { data: insertedRows, error: insertErr } = await sb
