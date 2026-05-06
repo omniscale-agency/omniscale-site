@@ -86,7 +86,7 @@ export const CLIENTS: ClientData[] = [
     city: 'Lyon',
     joinedAt: '2025-10-15',
     contact: { name: 'Léa Martin', email: 'lea@maisonlea.fr', phone: '+33 6 12 34 56 78' },
-    closer: 'Antoine',
+    closer: 'Rayan',
     monthlyRevenue: '45 000 €',
     status: 'actif',
     stats: {
@@ -109,12 +109,12 @@ export const CLIENTS: ClientData[] = [
       { label: 'ROAS Meta', current: 5.7, target: 6, unit: 'x' },
     ],
     todos: [
-      { id: 't1', title: 'Valider le brief shooting collection printemps', done: false, dueDate: '2026-04-22', assignee: 'Antoine', priority: 'high' },
+      { id: 't1', title: 'Valider le brief shooting collection printemps', done: false, dueDate: '2026-04-22', assignee: 'Rayan', priority: 'high' },
       { id: 't2', title: 'Approuver les 3 visuels de la campagne Meta', done: false, dueDate: '2026-04-19', assignee: 'Léa', priority: 'high' },
       { id: 't3', title: 'Envoyer la liste des nouveautés pour le mois', done: false, dueDate: '2026-04-25', assignee: 'Léa', priority: 'med' },
-      { id: 't4', title: 'Caler un créneau influence avec @sophie_paris', done: true, assignee: 'Antoine', priority: 'med' },
-      { id: 't5', title: 'Préparer les codes promo pour les soldes', done: true, assignee: 'Antoine' },
-      { id: 't6', title: 'Mettre à jour le pixel Meta sur le site', done: true, assignee: 'Antoine' },
+      { id: 't4', title: 'Caler un créneau influence avec @sophie_paris', done: true, assignee: 'Rayan', priority: 'med' },
+      { id: 't5', title: 'Préparer les codes promo pour les soldes', done: true, assignee: 'Rayan' },
+      { id: 't6', title: 'Mettre à jour le pixel Meta sur le site', done: true, assignee: 'Rayan' },
     ],
     videos: [
       { id: 'v1', title: 'Try-on collection printemps 2026', platform: 'tiktok', publishedAt: '2026-04-15', views: 142800, likes: 8420, comments: 312, shares: 1240 },
@@ -127,7 +127,7 @@ export const CLIENTS: ClientData[] = [
     upcomingEvents: [
       { id: 'e1', title: 'Point hebdo stratégie', startsAt: '2026-04-21T14:00:00.000Z', duration: 45, type: 'call', with: 'Antoine + Sarah' },
       { id: 'e2', title: 'Shooting collection printemps', startsAt: '2026-04-23T09:00:00.000Z', duration: 240, type: 'shooting', with: 'Équipe production' },
-      { id: 'e3', title: 'Review campagnes Meta', startsAt: '2026-04-25T11:00:00.000Z', duration: 30, type: 'review', with: 'Antoine' },
+      { id: 'e3', title: 'Review campagnes Meta', startsAt: '2026-04-25T11:00:00.000Z', duration: 30, type: 'review', with: 'Rayan' },
       { id: 'e4', title: 'Atelier contenu UGC', startsAt: '2026-04-28T15:00:00.000Z', duration: 90, type: 'workshop', with: 'Sarah' },
     ],
     activity: [
@@ -146,7 +146,7 @@ export const CLIENTS: ClientData[] = [
     city: 'Paris',
     joinedAt: '2025-12-01',
     contact: { name: 'Marco De Luca', email: 'marco@trattoriasole.fr', phone: '+33 6 87 65 43 21' },
-    closer: 'Antoine',
+    closer: 'Rayan',
     monthlyRevenue: '78 000 €',
     status: 'actif',
     stats: {
@@ -169,8 +169,8 @@ export const CLIENTS: ClientData[] = [
     ],
     todos: [
       { id: 't1', title: 'Filmer la nouvelle carte de printemps', done: false, dueDate: '2026-04-20', assignee: 'Sarah', priority: 'high' },
-      { id: 't2', title: 'Activer la campagne pour la fête des mères', done: false, dueDate: '2026-04-30', assignee: 'Antoine', priority: 'med' },
-      { id: 't3', title: 'Valider le partenariat avec @paris_food', done: true, assignee: 'Antoine' },
+      { id: 't2', title: 'Activer la campagne pour la fête des mères', done: false, dueDate: '2026-04-30', assignee: 'Rayan', priority: 'med' },
+      { id: 't3', title: 'Valider le partenariat avec @paris_food', done: true, assignee: 'Rayan' },
     ],
     videos: [
       { id: 'v1', title: 'Préparation des pâtes fraîches maison', platform: 'tiktok', publishedAt: '2026-04-14', views: 220400, likes: 14200, comments: 580, shares: 2400 },
@@ -178,7 +178,7 @@ export const CLIENTS: ClientData[] = [
       { id: 'v3', title: 'Marco présente la carte', platform: 'youtube', publishedAt: '2026-04-08', views: 18200, likes: 920, comments: 64, shares: 48 },
     ],
     upcomingEvents: [
-      { id: 'e1', title: 'Point mensuel performance', startsAt: '2026-04-22T16:00:00.000Z', duration: 60, type: 'call', with: 'Antoine' },
+      { id: 'e1', title: 'Point mensuel performance', startsAt: '2026-04-22T16:00:00.000Z', duration: 60, type: 'call', with: 'Rayan' },
       { id: 'e2', title: 'Shooting carte printemps', startsAt: '2026-04-26T14:00:00.000Z', duration: 180, type: 'shooting', with: 'Sarah' },
     ],
     activity: [
@@ -218,9 +218,9 @@ export const CLIENTS: ClientData[] = [
     ],
     todos: [
       { id: 't1', title: 'Valider la nouvelle landing page hydratant', done: false, dueDate: '2026-04-19', assignee: 'Sarah', priority: 'high' },
-      { id: 't2', title: 'Setup email automation post-achat', done: false, dueDate: '2026-04-26', assignee: 'Antoine', priority: 'med' },
+      { id: 't2', title: 'Setup email automation post-achat', done: false, dueDate: '2026-04-26', assignee: 'Rayan', priority: 'med' },
       { id: 't3', title: 'Brief les 5 micro-influenceuses sélectionnées', done: false, dueDate: '2026-04-22', assignee: 'Sarah', priority: 'high' },
-      { id: 't4', title: 'Tester nouveaux creatives Meta (3 hooks)', done: true, assignee: 'Antoine' },
+      { id: 't4', title: 'Tester nouveaux creatives Meta (3 hooks)', done: true, assignee: 'Rayan' },
     ],
     videos: [
       { id: 'v1', title: 'Routine soir — résultats avant/après', platform: 'tiktok', publishedAt: '2026-04-15', views: 580400, likes: 38200, comments: 1840, shares: 7200 },

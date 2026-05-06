@@ -129,5 +129,31 @@ export async function POST(req: NextRequest) {
     },
   );
 
+  // Notif email admin — fire-and-forget (n'échoue jamais le webhook)
+  try {
+    const adminEmail = process.env.ADMIN_NOTIF_EMAIL || 'omniscale1@gmail.com';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://omniscale.fr';
+    fetch(`${baseUrl}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kind: 'new_booking_admin',
+        to: adminEmail,
+        data: {
+          name: inviteeName,
+          email: inviteeEmail,
+          phone: inviteePhone,
+          scheduledAt,
+          closer,
+          utmSource: utm.source || tracking.utm_source || null,
+          utmCampaign: utm.campaign || tracking.utm_campaign || null,
+          event,
+        },
+      }),
+    }).catch((err) => console.warn('[iclosed webhook] admin notif failed (non-blocking):', err));
+  } catch (e) {
+    console.warn('[iclosed webhook] admin notif setup failed (non-blocking):', e);
+  }
+
   return NextResponse.json({ ok: true, event, external_id: externalId });
 }

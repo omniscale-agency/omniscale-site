@@ -24,106 +24,28 @@ const cases: CaseStudy[] = [
   {
     client: 'French Retailers',
     sector: 'Boutique de mode • Avignon',
-    result: 'Site refait, x10 sur le CA en ligne, +30% en boutique',
+    result: 'Refonte site + machine à contenu TikTok',
     color: 'from-fuchsia-500/30 to-purple-700/30',
-    tags: ['Site', 'E-commerce', 'Insta'],
+    tags: ['Site', 'E-commerce', 'TikTok'],
     image: '/images/cases/french-retailers.jpg',
     fallback: 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=1400&q=80&auto=format&fit=crop',
-    context: "Boutique physique reconnue à Avignon mais 0 vente en ligne. Site dépassé, aucune stratégie social media, pas de pub. Les clients venaient seulement par bouche-à-oreille.",
-    duration: '6 mois',
-    services: ['Refonte site e-commerce', 'Production de contenu', 'Social Media (Insta + TikTok)', 'Publicité Meta'],
+    context: "Boutique physique reconnue à Avignon mais peu de visibilité en ligne. Site dépassé, contenu social irrégulier. La croissance reposait surtout sur le bouche-à-oreille local.",
+    duration: 'En cours',
+    services: ['Refonte site e-commerce', 'Production de contenu TikTok', 'Social Media (Insta + TikTok)', 'Publicité Meta'],
     story: [
-      "On a commencé par refaire complètement le site (Shopify) avec un design qui colle à l'image premium de la marque, optimisé conversion.",
-      "En parallèle, mise en place d'une vraie machine de contenu : 4 vidéos TikTok par semaine, Reels Insta, stories quotidiennes. Format storytelling pour humaniser.",
-      "Lancement de campagnes Meta Ads ciblées local + national avec tracking pixel propre. Retargeting sur les visiteurs site et engagés social.",
+      "Refonte complète du site (Shopify) avec un design qui colle à l'image premium de la marque, optimisé conversion.",
+      "Mise en place d'une vraie machine de contenu : plusieurs vidéos TikTok par semaine, Reels Insta, stories quotidiennes — format storytelling axé boutique.",
+      "Lancement de campagnes Meta Ads ciblées local + national avec tracking pixel propre. Plusieurs vidéos du compte tournent à plus d'1M de vues (visibles dans le showreel ci-dessus).",
     ],
     metrics: [
-      { value: 'x10', label: 'CA en ligne', sub: 'vs avant refonte' },
-      { value: '+30%', label: 'Trafic boutique', sub: 'sur 6 mois' },
-      { value: '+45k', label: 'Abonnés gagnés', sub: 'TikTok + Insta' },
-      { value: 'x4.2', label: 'ROAS Meta', sub: 'campagnes en cours' },
+      { value: '12+', label: 'Vidéos showreel', sub: 'visibles ci-dessus' },
+      { value: '1M+', label: 'Vues sur la meilleure', sub: 'TikTok organique' },
+      { value: 'Hebdo', label: 'Production', sub: 'plusieurs vidéos/sem.' },
+      { value: 'En cours', label: 'Mission', sub: 'site + social + ads' },
     ],
     quote: {
-      text: "On a complètement changé de dimension. Notre boutique est devenue une vraie marque, pas juste un magasin local.",
-      author: 'Fondateur, French Retailers',
-    },
-  },
-  {
-    client: 'Trattoria Sole',
-    sector: 'Restaurant italien • Paris',
-    result: '+12k abonnés Insta en 90j',
-    color: 'from-orange-500/30 to-rose-700/30',
-    tags: ['TikTok', 'Influence', 'UGC'],
-    image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=1400&q=80&auto=format&fit=crop',
-    context: "Restaurant italien parisien avec une cuisine excellente mais un Insta à 800 abonnés sans aucune cohérence. Aucune visibilité TikTok. Réservations en baisse.",
-    duration: '90 jours',
-    services: ['Production vidéo (shooting hebdo)', 'Stratégie social media', 'Marketing d\'influence', 'TikTok organique'],
-    story: [
-      "Plan de contenu axé sur le storytelling : la famille derrière le resto, les recettes traditionnelles, les coulisses de la cuisine.",
-      "Activation de 8 macro-influenceurs food parisiens sur 3 mois (Pierre Croque, Joana Eating, MesAdressesParis…) pour des dîners pris en charge contre stories + posts.",
-      "Boost TikTok avec des vidéos courtes au rythme de 5 par semaine. Une vidéo virale a généré 2M de vues en 72h.",
-    ],
-    metrics: [
-      { value: '+12k', label: 'Abonnés Insta', sub: 'en 90 jours' },
-      { value: '2M', label: 'Vues TikTok', sub: 'meilleure vidéo' },
-      { value: '+85%', label: 'Réservations', sub: 'soir en semaine' },
-      { value: '8', label: 'Influenceurs', sub: 'activés' },
-    ],
-    quote: {
-      text: "On est passés de restaurant de quartier à incontournable parisien en 3 mois. Les réservations partent 2 semaines à l'avance.",
-      author: 'Chef, Trattoria Sole',
-    },
-  },
-  {
-    client: 'Glow Cosmetics',
-    sector: 'E-commerce beauté',
-    result: 'ROAS x6.4 sur Meta',
-    color: 'from-pink-400/30 to-violet-700/30',
-    tags: ['Ads', 'CRO', 'Email'],
-    image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=1400&q=80&auto=format&fit=crop',
-    context: "E-shop beauté lancé depuis 1 an. Catalogue solide mais ROAS Meta bloqué à x1.5, taux de conversion à 0.8%, aucun email marketing.",
-    duration: '4 mois',
-    services: ['Audit + refonte campagnes Meta', 'Optimisation conversion (CRO)', 'Email marketing (Klaviyo)', 'Production UGC'],
-    story: [
-      "Audit complet du compte publicitaire : restructuration totale en 3 niveaux (TOF, MOF, BOF) avec creative testing systématique chaque semaine.",
-      "Refonte du tunnel de conversion : pages produit allégées, upsells avant checkout, livraison gratuite affichée tôt. Taux de conversion passé de 0.8% à 2.4%.",
-      "Mise en place Klaviyo : flow welcome, abandoned cart, post-purchase, win-back. L'email représente maintenant 28% du CA mensuel.",
-    ],
-    metrics: [
-      { value: 'x6.4', label: 'ROAS Meta', sub: 'vs x1.5 avant' },
-      { value: '2.4%', label: 'Taux conv.', sub: 'vs 0.8% avant' },
-      { value: '28%', label: 'CA via email', sub: 'auparavant 0%' },
-      { value: '+340%', label: 'CA mensuel', sub: 'sur 4 mois' },
-    ],
-    quote: {
-      text: "Pour la première fois j'ai un système marketing qui tourne tout seul. Je peux enfin me concentrer sur le produit.",
-      author: 'CEO, Glow Cosmetics',
-    },
-  },
-  {
-    client: 'Atelier Brut',
-    sector: 'Concept store déco • Bordeaux',
-    result: 'Site refait, +180% de trafic',
-    color: 'from-amber-400/30 to-orange-700/30',
-    tags: ['Site', 'SEO', 'Branding'],
-    image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1400&q=80&auto=format&fit=crop',
-    context: "Concept store bordelais pointu avec une vraie identité, mais un site WordPress lent, mal référencé, et une présence digitale décousue. Trafic organique stagnant.",
-    duration: '5 mois',
-    services: ['Refonte site (Next.js)', 'SEO technique + contenu', 'Branding digital', 'Photo produits'],
-    story: [
-      "Refonte complète du site sous Next.js : performances 95+ Lighthouse, design éditorial qui met les produits en valeur comme dans un magazine.",
-      "Stratégie SEO sur 30 mots-clés long-tail (\"concept store déco Bordeaux\", \"objets design éthiques\", etc.) avec articles de blog mensuels.",
-      "Shooting photo studio pour 200 produits + lifestyle in situ. Réutilisation sur le site, Insta et la newsletter.",
-    ],
-    metrics: [
-      { value: '+180%', label: 'Trafic site', sub: 'sur 5 mois' },
-      { value: 'Top 3', label: 'Google', sub: 'sur 18 mots-clés' },
-      { value: '95', label: 'Score Lighthouse', sub: 'vs 42 avant' },
-      { value: '+220%', label: 'Ventes en ligne', sub: 'YoY' },
-    ],
-    quote: {
-      text: "Le nouveau site reflète enfin l'âme du concept store. On reçoit des compliments tous les jours dessus.",
-      author: 'Fondatrice, Atelier Brut',
+      text: "Le contenu tourne, le site tourne, on n'a plus à y penser.",
+      author: 'Équipe French Retailers',
     },
   },
 ];
@@ -149,11 +71,12 @@ export default function Cases() {
             Des résultats <span className="text-gradient">qu'on assume.</span>
           </h2>
           <p className="text-white/60 mt-6 max-w-2xl">
-            Clique sur un client pour voir le détail de notre intervention et les chiffres.
+            Clique sur un client pour voir le détail de l'intervention. D'autres cas en cours
+            de validation — preuves visuelles dans le showreel ci-dessus.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
           {cases.map((c, i) => (
             <motion.button
               key={c.client}

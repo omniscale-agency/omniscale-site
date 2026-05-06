@@ -31,7 +31,15 @@ interface LinkedInPost {
   created_at: string;
 }
 
-type Tab = 'compose' | 'ai' | 'scheduled' | 'history' | 'messages';
+type Tab = 'compose' | 'ai' | 'scheduled' | 'history' | 'live' | 'messages';
+
+interface LinkedInLivePost {
+  urn: string;
+  text: string;
+  createdAt: number | null;
+  visibility: string;
+  permalink: string;
+}
 
 interface AiMessage {
   role: 'user' | 'assistant';
@@ -199,7 +207,8 @@ function LinkedInInner() {
               { k: 'ai',        l: 'Assistant IA',    Icon: Bot },
               { k: 'compose',   l: 'Publier maintenant', Icon: Send },
               { k: 'scheduled', l: `Programmés (${scheduledPosts.length})`, Icon: CalendarIcon },
-              { k: 'history',   l: `Historique (${historyPosts.length})`, Icon: Eye },
+              { k: 'live',      l: 'Mes posts LinkedIn', Icon: Linkedin },
+              { k: 'history',   l: `Historique SaaS (${historyPosts.length})`, Icon: Eye },
               { k: 'messages',  l: 'Messages reçus',  Icon: Inbox },
             ] as { k: Tab; l: string; Icon: any }[]).map(({ k, l, Icon }) => (
               <button
@@ -219,6 +228,7 @@ function LinkedInInner() {
           {tab === 'ai' && <AiTab onToast={setToast} />}
           {tab === 'compose' && <ComposeTab tokenExpired={!!tokenExpired} onToast={setToast} />}
           {tab === 'scheduled' && <ScheduledTab posts={scheduledPosts} onToast={setToast} onRefresh={refresh} />}
+          {tab === 'live' && <LivePostsTab onReconnect={startConnect} />}
           {tab === 'history' && <HistoryTab posts={historyPosts} />}
           {tab === 'messages' && <MessagesTab />}
         </>
@@ -625,6 +635,148 @@ function HistoryTab({ posts }: { posts: LinkedInPost[] }) {
           </li>
         ))}
       </ul>
+    </Card>
+  );
+}
+
+// ════════════════════════════════════════════════════════
+// Tab: Live posts (récupérés via API LinkedIn /v2/ugcPosts)
+// ════════════════════════════════════════════════════════
+function LivePostsTab({ onReconnect }: { onReconnect: () => void }) {
+  const [posts, setPosts] = useState<LinkedInLivePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ kind: 'scope' | 'other'; msg: string } | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch('/api/integrations/linkedin/recent-posts?count=30');
+      const j = await r.json();
+      if (!r.ok) {
+        if (j.error === 'scope_missing' || r.status === 403) {
+          setError({ kind: 'scope', msg: j.message || 'Permission insuffisante' });
+        } else {
+          setError({ kind: 'other', msg: j.message || j.error || `Erreur ${r.status}` });
+        }
+        setPosts([]);
+      } else {
+        setPosts(j.posts || []);
+      }
+    } catch (e: any) {
+      setError({ kind: 'other', msg: e?.message || 'Erreur réseau' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <Card
+      title="Mes posts LinkedIn"
+      icon={Linkedin}
+      subtitle="Tes derniers posts (publiés via le SaaS ou directement depuis LinkedIn) — fetch live API"
+      action={
+        <button
+          onClick={load}
+          disabled={loading}
+          className="text-xs px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-lilac/40 inline-flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> Refresh
+        </button>
+      }
+    >
+      {loading && (
+        <div className="py-12 text-center text-white/50 inline-flex items-center gap-2 justify-center w-full">
+          <RefreshCw size={14} className="animate-spin" /> Récupération depuis LinkedIn…
+        </div>
+      )}
+
+      {!loading && error?.kind === 'scope' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <strong className="text-white block mb-1">Reconnexion nécessaire</strong>
+              <p className="text-sm text-white/70 leading-relaxed mb-3">
+                {error.msg}
+              </p>
+              <p className="text-xs text-white/50 mb-4">
+                On a ajouté la permission <code className="text-lilac">r_member_social</code> qui
+                permet de lister tes posts via l'API LinkedIn. Reconnecte ton compte pour l'autoriser.
+              </p>
+              <button
+                onClick={onReconnect}
+                className="inline-flex items-center gap-2 bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white font-semibold px-4 py-2 rounded-lg text-sm"
+              >
+                <Linkedin size={14} /> Reconnecter LinkedIn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && error?.kind === 'other' && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200 inline-flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5" />
+          <div>
+            <strong>Erreur API LinkedIn</strong>
+            <div className="mt-1 break-words">{error.msg}</div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && posts.length === 0 && (
+        <div className="text-center py-12 text-white/50">
+          <Linkedin className="mx-auto mb-3 opacity-50" size={32} />
+          <p>Aucun post trouvé sur ton compte LinkedIn.</p>
+          <p className="text-xs mt-2">Publie ton premier post depuis l'onglet « Publier maintenant » ou via l'assistant IA.</p>
+        </div>
+      )}
+
+      {!loading && !error && posts.length > 0 && (
+        <ul className="divide-y divide-white/5">
+          {posts.map((p) => (
+            <li key={p.urn} className="py-4 first:pt-0 last:pb-0">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#0A66C2]/15 border border-[#0A66C2]/30 flex items-center justify-center shrink-0">
+                  <Linkedin size={14} className="text-[#0A66C2]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm whitespace-pre-wrap text-white/90 leading-relaxed mb-2">
+                    {p.text || <span className="italic text-white/40">(post sans texte — image ou vidéo seule)</span>}
+                  </div>
+                  <div className="text-xs text-white/40 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {p.createdAt && (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock size={11} />
+                        {new Date(p.createdAt).toLocaleString('fr-FR', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </span>
+                    )}
+                    <span className="px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 uppercase text-[9px]">
+                      {p.visibility}
+                    </span>
+                    {p.permalink && (
+                      <a
+                        href={p.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lilac hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink size={11} /> Voir sur LinkedIn
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

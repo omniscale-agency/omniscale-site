@@ -7,8 +7,8 @@ import {
 import {
   BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
-import { CLIENTS, formatCurrency } from '@/lib/mockData';
-import { listInvoices, subscribeInvoices, computeTotals, updateInvoice, InvoiceDoc } from '@/lib/invoicesStore';
+import { formatCurrency } from '@/lib/mockData';
+import { listInvoices, subscribeInvoices, computeTotals, InvoiceDoc } from '@/lib/invoicesStore';
 import { downloadPDF } from '@/lib/pdfGenerator';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
@@ -23,34 +23,21 @@ interface MockInvoice {
   status: 'paid' | 'pending' | 'overdue' | 'draft';
 }
 
-const SEED_INVOICES: MockInvoice[] = [
-  { id: 'F-2026-042', client: 'Maison Léa', amount: 2500, issuedAt: '2026-04-01', dueAt: '2026-04-30', status: 'pending' },
-  { id: 'F-2026-041', client: 'Trattoria Sole', amount: 1800, issuedAt: '2026-04-01', dueAt: '2026-04-30', status: 'paid' },
-  { id: 'F-2026-040', client: 'Glow Cosmetics', amount: 4500, issuedAt: '2026-04-01', dueAt: '2026-04-15', status: 'paid' },
-  { id: 'F-2026-039', client: 'Atelier Brut', amount: 2200, issuedAt: '2026-03-15', dueAt: '2026-04-14', status: 'overdue' },
-  { id: 'F-2026-038', client: 'Maison Léa', amount: 2500, issuedAt: '2026-03-01', dueAt: '2026-03-31', status: 'paid' },
-  { id: 'F-2026-037', client: 'Trattoria Sole', amount: 1800, issuedAt: '2026-03-01', dueAt: '2026-03-31', status: 'paid' },
-  { id: 'F-2026-036', client: 'Glow Cosmetics', amount: 4500, issuedAt: '2026-03-01', dueAt: '2026-03-15', status: 'paid' },
-];
+// Seed invoices et paiements à venir = vides : on ne montre que les vraies factures
+// créées via le bouton "Créer une facture" (stockées via lib/invoicesStore).
+const SEED_INVOICES: MockInvoice[] = [];
+const UPCOMING_PAYMENTS: Array<{ id: string; client: string; amount: number; expectedAt: string; type: 'monthly' | 'project' | 'commission' }> = [];
 
-const UPCOMING_PAYMENTS = [
-  { id: 'p1', client: 'Maison Léa', amount: 2500, expectedAt: '2026-04-30', type: 'monthly' as const },
-  { id: 'p2', client: 'Glow Cosmetics', amount: 4500, expectedAt: '2026-05-01', type: 'monthly' as const },
-  { id: 'p3', client: 'Trattoria Sole', amount: 1800, expectedAt: '2026-05-01', type: 'monthly' as const },
-  { id: 'p4', client: 'Atelier Brut', amount: 2200, expectedAt: '2026-04-14', type: 'monthly' as const },
-  { id: 'p5', client: 'Glow Cosmetics', amount: 6000, expectedAt: '2026-05-15', type: 'project' as const },
-];
-
-const MONTHLY = Array.from({ length: 12 }, (_, i) => {
+// Squelette des 12 derniers mois — alimenté plus bas par les vraies factures payées.
+const EMPTY_MONTHS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date();
   d.setMonth(d.getMonth() - (11 - i));
-  const base = 8000 + i * 800 + Math.round((Math.sin(i) + 1) * 1500);
   return {
     month: d.toLocaleDateString('fr-FR', { month: 'short' }),
     monthFull: d.toISOString().slice(0, 7),
-    revenue: base,
-    expenses: Math.round(base * 0.42),
-    profit: Math.round(base * 0.58),
+    revenue: 0,
+    expenses: 0,
+    profit: 0,
   };
 });
 
@@ -77,7 +64,7 @@ export default function AdminFinancePage() {
 
   if (!mounted) return null;
 
-  // Merge seed + créées dynamiquement
+  // Toutes les factures viennent du store (créées dans le SaaS).
   const allInvoices: MockInvoice[] = [
     ...createdInvoices.map((i) => ({
       id: i.id,
@@ -98,17 +85,37 @@ export default function AdminFinancePage() {
     return t >= fromTs && t <= toTs;
   });
 
-  const filteredMonthly = MONTHLY.filter((m) => {
+  // Agrégation revenus mensuels à partir des vraies factures payées.
+  const realMonthly = EMPTY_MONTHS.map((m) => {
+    const monthStart = new Date(m.monthFull + '-01').getTime();
+    const monthEnd = new Date(new Date(monthStart).setMonth(new Date(monthStart).getMonth() + 1)).getTime();
+    const revenue = allInvoices
+      .filter((i) => i.status === 'paid')
+      .filter((i) => {
+        const t = new Date(i.issuedAt).getTime();
+        return t >= monthStart && t < monthEnd;
+      })
+      .reduce((s, i) => s + i.amount, 0);
+    return { ...m, revenue };
+  });
+  const filteredMonthly = realMonthly.filter((m) => {
     const t = new Date(m.monthFull + '-15').getTime();
     return t >= fromTs && t <= toTs;
   });
 
-  const lastMonth = filteredMonthly[filteredMonthly.length - 2] || MONTHLY[MONTHLY.length - 2];
-  const thisMonth = filteredMonthly[filteredMonthly.length - 1] || MONTHLY[MONTHLY.length - 1];
-  const monthDelta = lastMonth ? Math.round(((thisMonth.revenue - lastMonth.revenue) / lastMonth.revenue) * 100) : 0;
+  const lastMonth = filteredMonthly[filteredMonthly.length - 2] ?? { revenue: 0 };
+  const thisMonth = filteredMonthly[filteredMonthly.length - 1] ?? { revenue: 0 };
+  const monthDelta = lastMonth.revenue > 0
+    ? Math.round(((thisMonth.revenue - lastMonth.revenue) / lastMonth.revenue) * 100)
+    : 0;
 
-  const cashPosition = 47820;
-  const MRR = CLIENTS.length * 2933;
+  // Trésorerie & MRR : non saisis tant qu'on n'a pas branché un connecteur banque/Stripe.
+  const cashPosition = 0;
+  // MRR estimé = somme des factures "paid" des 30 derniers jours.
+  const thirtyDaysAgo = Date.now() - 30 * 86400000;
+  const MRR = allInvoices
+    .filter((i) => i.status === 'paid' && new Date(i.issuedAt).getTime() >= thirtyDaysAgo)
+    .reduce((s, i) => s + i.amount, 0);
   const outstandingAmount = filteredInvoices.filter((i) => i.status === 'pending' || i.status === 'overdue').reduce((s, i) => s + i.amount, 0);
   const overdueAmount = filteredInvoices.filter((i) => i.status === 'overdue').reduce((s, i) => s + i.amount, 0);
 
@@ -193,10 +200,20 @@ export default function AdminFinancePage() {
         </div>
       </div>
 
+      {/* Bandeau données réelles uniquement */}
+      <div className="mb-6 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-200 flex items-start gap-2">
+        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+        <div>
+          <strong>Mode données réelles.</strong> Les KPIs ci-dessous s'alimentent automatiquement à
+          partir des factures que tu crées (bouton « Créer une facture »). Connecte une banque ou
+          Stripe plus tard pour avoir la trésorerie en direct.
+        </div>
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Trésorerie" value={formatCurrency(cashPosition)} delta={monthDelta} icon={Wallet} accent="green" />
-        <StatCard label="MRR" value={formatCurrency(MRR)} delta={12} icon={TrendingUp} accent="lilac" />
+        <StatCard label="Trésorerie" value={cashPosition > 0 ? formatCurrency(cashPosition) : '—'} icon={Wallet} accent="green" />
+        <StatCard label="Encaissé 30j" value={formatCurrency(MRR)} delta={monthDelta} icon={TrendingUp} accent="lilac" />
         <StatCard label="À encaisser" value={formatCurrency(outstandingAmount)} icon={Clock} accent="amber" />
         <StatCard label="En retard" value={formatCurrency(overdueAmount)} icon={AlertCircle} accent="pink" />
       </div>
@@ -219,7 +236,7 @@ export default function AdminFinancePage() {
         </div>
         <div style={{ width: '100%', height: 280 }}>
           <ResponsiveContainer>
-            <BarChart data={filteredMonthly.length > 0 ? filteredMonthly : MONTHLY} margin={{ top: 10, right: 5, left: -15, bottom: 0 }}>
+            <BarChart data={filteredMonthly.length > 0 ? filteredMonthly : realMonthly} margin={{ top: 10, right: 5, left: -15, bottom: 0 }}>
               <defs>
                 <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#B794E8" stopOpacity={1} />
@@ -245,7 +262,12 @@ export default function AdminFinancePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card title="Paiements attendus" icon={Clock} subtitle={`${UPCOMING_PAYMENTS.length} échéances`}>
+        <Card title="Paiements attendus" icon={Clock} subtitle={UPCOMING_PAYMENTS.length === 0 ? 'aucun pour l\'instant' : `${UPCOMING_PAYMENTS.length} échéances`}>
+          {UPCOMING_PAYMENTS.length === 0 && (
+            <p className="text-sm text-white/50 italic">
+              Crée une facture mensuelle ou un acompte pour faire apparaître les échéances ici.
+            </p>
+          )}
           <ul className="space-y-2">
             {UPCOMING_PAYMENTS.map((p) => {
               const days = Math.ceil((new Date(p.expectedAt).getTime() - Date.now()) / 86400000);

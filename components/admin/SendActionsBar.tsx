@@ -206,7 +206,7 @@ function EventForm({ slug, clientEmail, clientName, onSent }: { slug: string; cl
   const [time, setTime] = useState('14:00');
   const [duration, setDuration] = useState(45);
   const [type, setType] = useState<'call' | 'shooting' | 'review' | 'workshop'>('call');
-  const [withWho, setWithWho] = useState('Antoine');
+  const [withWho, setWithWho] = useState('Rayan');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

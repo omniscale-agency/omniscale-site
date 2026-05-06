@@ -7,8 +7,9 @@ const TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 const USERINFO_URL = 'https://api.linkedin.com/v2/userinfo';
 const POSTS_URL = 'https://api.linkedin.com/v2/ugcPosts';
 
-// Scopes minimum pour OpenID Connect + posting sur le profil personnel
-export const SCOPES = ['openid', 'profile', 'email', 'w_member_social'].join(' ');
+// Scopes : OpenID Connect + write posts (w_member_social) + read own posts (r_member_social)
+// r_member_social permet de lister ses propres posts via /v2/ugcPosts?q=authors&authors=...
+export const SCOPES = ['openid', 'profile', 'email', 'w_member_social', 'r_member_social'].join(' ');
 
 function env(key: string): string {
   const v = process.env[key];
@@ -111,4 +112,48 @@ export async function publishTextPost(opts: {
   // L'URN est renvoyé dans le header x-restli-id
   const postId = r.headers.get('x-restli-id') || r.headers.get('X-RestLi-Id') || '';
   return { postId };
+}
+
+export interface LinkedInRemotePost {
+  urn: string;                       // ex "urn:li:share:7..."
+  text: string;                      // contenu du post
+  createdAt: number | null;          // timestamp ms
+  visibility: string;                // PUBLIC / CONNECTIONS / etc.
+  permalink: string;                 // URL feed/update LinkedIn
+}
+
+/**
+ * Récupère les posts récents publiés par le compte LinkedIn (jusqu'à 50).
+ * Nécessite le scope `r_member_social`. Si le scope manque, l'API renvoie 403.
+ */
+export async function getRecentPosts(opts: {
+  accessToken: string;
+  userSub: string;
+  count?: number;
+}): Promise<LinkedInRemotePost[]> {
+  const author = encodeURIComponent(`urn:li:person:${opts.userSub}`);
+  const count = Math.min(opts.count || 20, 50);
+  const url = `${POSTS_URL}?q=authors&authors=List(${author})&count=${count}&sortBy=CREATED`;
+  const r = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${opts.accessToken}`,
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`LinkedIn ugcPosts read failed (${r.status}): ${t}`);
+  }
+  const data = await r.json();
+  const elements: any[] = data.elements || [];
+  return elements.map((el) => {
+    const urn: string = el.id || el.urn || '';
+    const share = el.specificContent?.['com.linkedin.ugc.ShareContent'];
+    const text: string = share?.shareCommentary?.text || '';
+    const createdAt: number | null = el.created?.time || el.firstPublishedAt || null;
+    const visibility: string =
+      el.visibility?.['com.linkedin.ugc.MemberNetworkVisibility'] || 'UNKNOWN';
+    const permalink = urn ? `https://www.linkedin.com/feed/update/${urn}` : '';
+    return { urn, text, createdAt, visibility, permalink };
+  });
 }

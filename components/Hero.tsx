@@ -2,7 +2,6 @@
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUpRight, Calendar } from 'lucide-react';
 import TypewriterCycle from './TypewriterCycle';
-import Counter from './Counter';
 import { BOOKING_URL } from '@/lib/config';
 import TrustpilotBadge from './TrustpilotBadge';
 
@@ -92,39 +91,6 @@ export default function Hero() {
           className="mt-6"
         >
           <TrustpilotBadge variant="compact" />
-        </motion.div>
-
-        {/* Stats avec compteurs */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.9 }}
-          className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl border-t border-white/10 pt-10"
-        >
-          <div>
-            <div className="font-display text-4xl md:text-5xl font-bold text-lilac">
-              +<Counter value={120} />
-            </div>
-            <div className="text-sm text-white/50 mt-1">commerces accompagnés</div>
-          </div>
-          <div>
-            <div className="font-display text-4xl md:text-5xl font-bold text-lilac">
-              +<Counter value={50} suffix="M" />
-            </div>
-            <div className="text-sm text-white/50 mt-1">vues générées sur les réseaux</div>
-          </div>
-          <div>
-            <div className="font-display text-4xl md:text-5xl font-bold text-lilac">
-              x<Counter value={4.2} decimals={1} />
-            </div>
-            <div className="text-sm text-white/50 mt-1">CA moyen sur 12 mois</div>
-          </div>
-          <div>
-            <div className="font-display text-4xl md:text-5xl font-bold text-lilac">
-              <Counter value={98} suffix="%" />
-            </div>
-            <div className="text-sm text-white/50 mt-1">clients fidélisés</div>
-          </div>
         </motion.div>
 
         <motion.div

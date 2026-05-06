@@ -278,6 +278,45 @@ export function templateNewLeadAdmin(opts: { name: string; email: string; brand?
   });
 }
 
+export function templateNewBookingAdmin(opts: {
+  name: string | null;
+  email: string | null;
+  phone?: string | null;
+  scheduledAt?: string | null;
+  closer?: string | null;
+  utmSource?: string | null;
+  utmCampaign?: string | null;
+  event: 'scheduled' | 'rescheduled' | 'cancelled' | 'completed' | 'no_show';
+}) {
+  const eventLabels: Record<string, string> = {
+    scheduled: '🟢 Nouveau RDV programmé',
+    rescheduled: '🟡 RDV reprogrammé',
+    cancelled: '🔴 RDV annulé',
+    completed: '✅ RDV effectué',
+    no_show: '⚠️ No-show',
+  };
+  const dateStr = opts.scheduledAt
+    ? new Date(opts.scheduledAt).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })
+    : 'Date non précisée';
+  return shell({
+    preheader: `${eventLabels[opts.event]} — ${opts.name || opts.email || 'lead'}`,
+    title: eventLabels[opts.event],
+    body: `
+      <p>Un appel iClosed vient d'être ${opts.event === 'scheduled' ? 'réservé' : opts.event}.</p>
+      <div style="margin:24px 0;padding:20px;background:rgba(183,148,232,0.08);border:1px solid rgba(183,148,232,0.2);border-radius:14px;">
+        ${opts.name ? `<p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#B794E8;">${opts.name}</p>` : ''}
+        ${opts.email ? `<p style="margin:6px 0;color:#aaa;">📧 <a href="mailto:${opts.email}" style="color:#fff;text-decoration:none;">${opts.email}</a></p>` : ''}
+        ${opts.phone ? `<p style="margin:6px 0;color:#aaa;">📞 ${opts.phone}</p>` : ''}
+        <p style="margin:6px 0;color:#aaa;">🗓 <strong style="color:#fff;">${dateStr}</strong></p>
+        ${opts.closer ? `<p style="margin:6px 0;color:#aaa;">👤 Closer : <strong style="color:#fff;">${opts.closer}</strong></p>` : ''}
+        ${opts.utmSource ? `<p style="margin:6px 0;color:#aaa;">🌐 Source : ${opts.utmSource}${opts.utmCampaign ? ` · ${opts.utmCampaign}` : ''}</p>` : ''}
+      </div>
+    `,
+    ctaLabel: 'Voir tous les RDV',
+    ctaUrl: `${BASE_URL}/admin/bookings`,
+  });
+}
+
 export function templateWelcomeLead(opts: { name: string }) {
   return shell({
     preheader: `Bienvenue chez Omniscale ${opts.name} ! Ton compte est prêt.`,

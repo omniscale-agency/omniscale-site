@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Eye, DollarSign, Activity,
   Search, ChevronRight, Sparkles,
 } from 'lucide-react';
-import { CLIENTS, formatNumber, formatCurrency } from '@/lib/mockData';
+import { formatNumber, formatCurrency } from '@/lib/mockData';
 import { listAllAdminClients, AdminClientRow } from '@/lib/adminClients';
 import StatCard from '@/components/dashboard/StatCard';
 import Card from '@/components/dashboard/Card';
@@ -48,11 +48,32 @@ export default function AdminOverview() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <StatCard label="Clients actifs" value={clients.length.toString()} delta={50} icon={Users} accent="lilac" />
-        <StatCard label="Vues cumulées 30j" value={formatNumber(totalViews)} delta={32} icon={Eye} accent="green" />
-        <StatCard label="CA pub généré" value={formatCurrency(totalRevenue)} delta={28} icon={DollarSign} accent="amber" />
-        <StatCard label="ROAS moyen" value={`x${overallRoas.toFixed(1)}`} delta={9} icon={TrendingUp} accent="pink" />
+        <StatCard label="Clients actifs" value={clients.length.toString()} icon={Users} accent="lilac" />
+        <StatCard
+          label="Vues cumulées 30j"
+          value={withStats.length > 0 ? formatNumber(totalViews) : '—'}
+          icon={Eye}
+          accent="green"
+        />
+        <StatCard
+          label="CA pub généré"
+          value={withStats.length > 0 ? formatCurrency(totalRevenue) : '—'}
+          icon={DollarSign}
+          accent="amber"
+        />
+        <StatCard
+          label="ROAS moyen"
+          value={withStats.length > 0 ? `x${overallRoas.toFixed(1)}` : '—'}
+          icon={TrendingUp}
+          accent="pink"
+        />
       </div>
+      {withStats.length === 0 && (
+        <p className="-mt-6 mb-10 text-xs text-white/40 italic">
+          Pas encore de stats : connecte un compte social ou ajoute des données KPI sur la fiche
+          client pour voir les chiffres ici.
+        </p>
+      )}
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden mb-10">
         <div className="p-5 border-b border-white/10 flex items-center justify-between gap-4">
@@ -127,26 +148,14 @@ export default function AdminOverview() {
         </div>
       </div>
 
-      <Card title="Activité récente sur tous les clients" icon={Activity}>
-        <ol className="relative space-y-4 ml-3 border-l border-white/10 pl-5">
-          {CLIENTS.flatMap((c) =>
-            c.activity.map((a) => ({ ...a, brand: c.brand, slug: c.slug })),
-          )
-            .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-            .slice(0, 10)
-            .map((a) => (
-              <li key={`${a.slug}-${a.id}`} className="relative">
-                <span className="absolute -left-[1.7rem] top-1 w-3 h-3 rounded-full bg-lilac ring-4 ring-black" />
-                <div className="text-sm">
-                  <a href={`/admin/clients/${a.slug}`} className="text-lilac hover:underline">{a.brand}</a>
-                  <span className="text-white/80"> · {a.label}</span>
-                </div>
-                <div className="text-xs text-white/40 mt-0.5">
-                  {new Date(a.at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </li>
-            ))}
-        </ol>
+      <Card title="Activité récente" icon={Activity} subtitle="branché plus tard sur les events réels">
+        <p className="text-sm text-white/50 italic">
+          Le flux d'activité (RDV pris, factures payées, posts publiés) sera affiché ici dès qu'on
+          aura branché Supabase Realtime sur les tables correspondantes. Pour l'instant : voir
+          <a href="/admin/bookings" className="text-lilac hover:underline ml-1">RDV iClosed</a>
+          {' '}et{' '}
+          <a href="/admin/integrations/linkedin" className="text-lilac hover:underline">LinkedIn</a>.
+        </p>
       </Card>
     </main>
   );

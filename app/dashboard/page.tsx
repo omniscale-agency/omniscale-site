@@ -194,17 +194,16 @@ export default function ClientDashboard() {
   // Si on arrive ici sans client (cas edge), bail.
   if (!client) return <div className="p-12 text-white/60">Chargement…</div>;
 
-  const allTodos = [...extraTodos, ...client.todos];
-  const allEvents = [...extraEvents, ...client.upcomingEvents].sort(
-    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-  );
+  // On n'affiche QUE les vraies tâches/RDV venus de la DB (pas de merge avec mockData
+  // pour les comptes réels). Les données mockData sont gardées en fallback uniquement
+  // pour le compte démo (slug = 'maison-lea' historiquement).
+  const isDemoAccount = client.slug === 'maison-lea';
+  const allTodos = isDemoAccount ? [...extraTodos, ...client.todos] : extraTodos;
+  const allEvents = (isDemoAccount
+    ? [...extraEvents, ...client.upcomingEvents]
+    : extraEvents
+  ).sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   const todosOpen = allTodos.filter((t) => !t.done);
-
-  const seedTotalViews = sumSeries(series, 'views');
-  const seedViewsDelta = deltaPct(series, 'views');
-  const seedAdRevenue = sumSeries(series, 'adRevenue');
-  const seedAdSpend = sumSeries(series, 'adSpend');
-  const seedRoas = seedAdSpend > 0 ? seedAdRevenue / seedAdSpend : 0;
 
   // === KPIs RÉELS (saisis par admin) > priorité sur les seed-mock ===
   const latestMetrics = latestByMetric(dbMetrics);
@@ -213,14 +212,22 @@ export default function ClientDashboard() {
   const roasTrend = trendForMetric(dbMetrics, 'roas');
   const engagementTrend = trendForMetric(dbMetrics, 'engagement_rate');
 
+  // Données seed (mock) — utilisées UNIQUEMENT pour le compte démo
+  const seedTotalViews = isDemoAccount ? sumSeries(series, 'views') : 0;
+  const seedViewsDelta = isDemoAccount ? deltaPct(series, 'views') : undefined;
+  const seedAdRevenue = isDemoAccount ? sumSeries(series, 'adRevenue') : 0;
+  const seedAdSpend = isDemoAccount ? sumSeries(series, 'adSpend') : 0;
+  const seedRoas = seedAdSpend > 0 ? seedAdRevenue / seedAdSpend : 0;
+
   const totalViews = latestMetrics['views']?.value ?? seedTotalViews;
   const viewsDelta = viewsTrend.deltaPct ?? seedViewsDelta;
   const adRevenue = latestMetrics['ad_revenue']?.value ?? seedAdRevenue;
   const adSpend = latestMetrics['ad_spend']?.value ?? seedAdSpend;
   const roas = latestMetrics['roas']?.value ?? (adSpend > 0 ? adRevenue / adSpend : seedRoas);
-  const engagementRate = latestMetrics['engagement_rate']?.value ?? client.stats.engagementRate;
+  const engagementRate = latestMetrics['engagement_rate']?.value
+    ?? (isDemoAccount ? client.stats.engagementRate : 0);
   const followersGained = latestMetrics['followers_gained']?.value
-    ?? (client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained);
+    ?? (isDemoAccount ? (client.stats.instagramFollowersGained + client.stats.tiktokFollowersGained) : 0);
 
   // Badge "live" si on a au moins une métrique réelle
   const hasRealMetrics = dbMetrics.length > 0;
@@ -231,11 +238,16 @@ export default function ClientDashboard() {
   const igReal = real.connections.instagram;
   const ttReal = real.connections.tiktok;
   const ytReal = real.connections.youtube;
-  const igFollowers = igReal?.followers ?? client.stats.instagramFollowers;
-  const igViews = igReal?.metrics?.totalViews ?? client.stats.instagramViews;
-  const ttFollowers = ttReal?.followers ?? client.stats.tiktokFollowers;
-  const ttViews = ttReal?.metrics?.totalViews ?? client.stats.tiktokViews;
+  const igFollowers = igReal?.followers ?? (isDemoAccount ? client.stats.instagramFollowers : 0);
+  const igViews = igReal?.metrics?.totalViews ?? (isDemoAccount ? client.stats.instagramViews : 0);
+  const ttFollowers = ttReal?.followers ?? (isDemoAccount ? client.stats.tiktokFollowers : 0);
+  const ttViews = ttReal?.metrics?.totalViews ?? (isDemoAccount ? client.stats.tiktokViews : 0);
   const realVideos = real.videos; // Si non-vide, override les vidéos mock
+  const hasAnyRealSocial = !!(igReal || ttReal || ytReal);
+  // Graphes : visibles si on a soit le compte démo, soit des KPIs réels saisis, soit une connexion sociale active.
+  const showCharts = isDemoAccount || hasRealMetrics || hasAnyRealSocial;
+  const showVideos = isDemoAccount || realVideos.length > 0;
+  const showActivity = isDemoAccount && client.activity.length > 0;
 
   return (
     <main className="p-6 md:p-10 lg:p-12 max-w-7xl mx-auto">
@@ -260,11 +272,18 @@ export default function ClientDashboard() {
         </div>
       )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Vues" value={formatNumber(totalViews)} delta={viewsDelta} icon={Eye} accent="lilac" />
-        <StatCard label="Abonnés gagnés" value={`+${formatNumber(Math.round(followersGained))}`} delta={followersGainedTrend.deltaPct ?? 18} icon={Users} accent="green" />
-        <StatCard label="ROAS Meta" value={`x${roas.toFixed(1)}`} delta={roasTrend.deltaPct ?? deltaPct(series, 'adRevenue')} icon={TrendingUp} accent="amber" />
-        <StatCard label="Engagement moyen" value={`${engagementRate}%`} delta={engagementTrend.deltaPct ?? 3} icon={Heart} accent="pink" />
+        <StatCard label="Vues" value={totalViews > 0 ? formatNumber(totalViews) : '—'} delta={viewsDelta} icon={Eye} accent="lilac" />
+        <StatCard label="Abonnés gagnés" value={followersGained > 0 ? `+${formatNumber(Math.round(followersGained))}` : '—'} delta={followersGainedTrend.deltaPct ?? (isDemoAccount ? 18 : undefined)} icon={Users} accent="green" />
+        <StatCard label="ROAS Meta" value={roas > 0 ? `x${roas.toFixed(1)}` : '—'} delta={roasTrend.deltaPct ?? (isDemoAccount ? deltaPct(series, 'adRevenue') : undefined)} icon={TrendingUp} accent="amber" />
+        <StatCard label="Engagement moyen" value={engagementRate > 0 ? `${engagementRate}%` : '—'} delta={engagementTrend.deltaPct ?? (isDemoAccount ? 3 : undefined)} icon={Heart} accent="pink" />
       </div>
+      {!hasRealMetrics && !hasAnyRealSocial && !isDemoAccount && (
+        <div className="mb-8 px-4 py-3 rounded-xl border border-dashed border-lilac/30 bg-lilac/5 text-sm text-white/70">
+          Pas encore de données.{' '}
+          <a href="/dashboard/connections" className="text-lilac hover:underline">Connecte tes comptes sociaux</a>
+          {' '}ou demande à ton account manager de saisir tes premiers KPIs pour voir les graphes.
+        </div>
+      )}
 
       {hasRealMetrics && (
         <div className="mb-8">
@@ -272,6 +291,7 @@ export default function ClientDashboard() {
         </div>
       )}
 
+      {showCharts && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AreaChartCard
           title="Vues totales" icon={Eye} data={series}
@@ -306,10 +326,11 @@ export default function ClientDashboard() {
           title="Taux d'engagement" icon={Heart} data={series}
           series={[{ key: 'engagement', label: 'Engagement', color: '#ec4899' }]}
           compareKey={compare ? 'prevEngagement' : undefined}
-          total={`${client.stats.engagementRate}%`} delta={3}
+          total={`${engagementRate}%`} delta={engagementTrend.deltaPct ?? (isDemoAccount ? 3 : undefined)}
           formatY={(v) => `${v}%`}
         />
       </div>
+      )}
 
       <div className={`grid grid-cols-1 ${ytReal ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-10`}>
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-fuchsia-500/10 to-orange-500/5 p-5">
@@ -428,7 +449,8 @@ export default function ClientDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+      <div className={`grid grid-cols-1 ${showActivity ? 'lg:grid-cols-3' : ''} gap-6 mb-10`}>
+        {showActivity && (
         <Card title="Activité récente" icon={Activity} className="lg:col-span-2">
           <ol className="relative space-y-5 ml-3 border-l border-white/10 pl-5">
             {client.activity.map((a) => (
@@ -440,6 +462,7 @@ export default function ClientDashboard() {
             ))}
           </ol>
         </Card>
+        )}
 
         <Card title="Prochains RDV" icon={Calendar} subtitle="Synchro Google Calendar"
           action={<a href="/dashboard/calendar" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Agenda <ArrowUpRight size={12} /></a>}>
@@ -467,6 +490,7 @@ export default function ClientDashboard() {
         </Card>
       </div>
 
+      {showVideos && (
       <Card title="Vidéos récentes" icon={VideoIcon}
         subtitle={realVideos.length > 0 ? `${realVideos.length} importées (live API)` : `${client.videos.length} publiées sur les 30 derniers jours`}
         action={<a href="/dashboard/videos" className="text-xs text-lilac hover:underline inline-flex items-center gap-1">Tout voir <ArrowUpRight size={12} /></a>}>
@@ -503,6 +527,7 @@ export default function ClientDashboard() {
           ))}
         </div>
       </Card>
+      )}
     </main>
   );
 }

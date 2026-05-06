@@ -68,7 +68,7 @@ export async function listAllAdminClients(): Promise<AdminClientRow[]> {
         website: p.website || undefined,
         createdAt: p.created_at,
       },
-      closer: 'Antoine',
+      closer: 'Rayan',
       views,
       roas,
     };
@@ -149,7 +149,7 @@ export async function findAdminClient(slug: string): Promise<AdminClientRow | nu
       website: p.website || undefined,
       createdAt: p.created_at,
     },
-    closer: 'Antoine',
+    closer: 'Rayan',
     views,
     roas,
   };

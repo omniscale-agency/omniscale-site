@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, CheckSquare, Video, Calendar, Target, Users,
-  LogOut, Settings, TrendingUp, Menu, X, Filter, Wallet, Receipt,
-  Lightbulb, Plug, Sparkles, ArrowRight, BarChart3, Linkedin,
+  LogOut, Settings, Menu, X, Wallet, Receipt,
+  Lightbulb, Plug, Sparkles, ArrowRight, BarChart3, Linkedin, CalendarCheck,
 } from 'lucide-react';
 import Logo from './Logo';
 import { getSessionAsync, logout, Session, Role } from '@/lib/auth';
@@ -36,12 +36,11 @@ const CLIENT_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   { href: '/admin', label: 'Vue d\'ensemble', Icon: LayoutDashboard },
   { href: '/admin/clients', label: 'Clients', Icon: Users },
+  { href: '/admin/bookings', label: 'RDV iClosed', Icon: CalendarCheck },
   { href: '/admin/users', label: 'Utilisateurs & rôles', Icon: Users },
   { href: '/admin/calendar', label: 'Agenda global', Icon: Calendar },
-  { href: '/admin/leads', label: 'Leads & acquisition', Icon: Filter },
   { href: '/admin/analytics', label: 'Analytics & funnel', Icon: BarChart3 },
   { href: '/admin/finance', label: 'Trésorerie', Icon: Wallet },
-  { href: '/admin/performance', label: 'Performance', Icon: TrendingUp },
   { href: '/admin/integrations/linkedin', label: 'LinkedIn', Icon: Linkedin },
   { href: '/admin/settings', label: 'Paramètres entreprise', Icon: Settings },
 ];

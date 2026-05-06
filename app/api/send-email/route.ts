@@ -4,7 +4,7 @@ import {
   templateNewTask, templateNewEvent, templateNewInvoice,
   templateNewLeadAdmin, templateWelcomeLead,
   templateCancelTask, templateCancelEvent,
-  templateBookingConfirmed,
+  templateBookingConfirmed, templateNewBookingAdmin,
 } from '@/lib/emailTemplates';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
@@ -60,6 +60,19 @@ export async function POST(req: NextRequest) {
         subject = `🚀 Nouveau lead inscrit : ${data.name}`;
         html = templateNewLeadAdmin(data as any);
         break;
+      case 'new_booking_admin': {
+        const labels: Record<string, string> = {
+          scheduled: '🟢 RDV pris',
+          rescheduled: '🟡 RDV reprogrammé',
+          cancelled: '🔴 RDV annulé',
+          completed: '✅ RDV effectué',
+          no_show: '⚠️ No-show',
+        };
+        const evLabel = labels[data.event] || 'RDV';
+        subject = `${evLabel} — ${data.name || data.email || 'lead'}`;
+        html = templateNewBookingAdmin(data as any);
+        break;
+      }
       case 'welcome_lead':
         subject = `Bienvenue chez Omniscale 👋`;
         html = templateWelcomeLead(data as any);
