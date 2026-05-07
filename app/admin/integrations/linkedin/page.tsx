@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Linkedin, CheckCircle2, AlertCircle, LogOut, Send, Eye,
   RefreshCw, MessageSquare, Plug, Clock, ExternalLink, Sparkles,
-  Calendar as CalendarIcon, Wand2, Trash2, Inbox, Bot,
+  Calendar as CalendarIcon, Wand2, Trash2, Inbox, Bot, Plus, History,
 } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import Card from '@/components/dashboard/Card';
@@ -231,19 +231,68 @@ function LinkedInInner() {
 }
 
 // ════════════════════════════════════════════════════════
-// Tab: Assistant IA
+// Tab: Assistant IA (avec historique persistant)
 // ════════════════════════════════════════════════════════
+interface ConvSummary {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
 function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } | null) => void }) {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [streamingTools, setStreamingTools] = useState<Array<{ name: string; input: any; result?: string }>>([]);
+  const [conversations, setConversations] = useState<ConvSummary[]>([]);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [loadingConv, setLoadingConv] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load list au mount
+  const loadConversations = async () => {
+    try {
+      const r = await fetch('/api/integrations/linkedin/ai-conversations');
+      const j = await r.json();
+      if (r.ok) setConversations(j.conversations || []);
+    } catch {}
+  };
+
+  useEffect(() => { loadConversations(); }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, streamingText, streamingTools]);
+
+  // Persiste après chaque tour : create si nouveau, patch sinon
+  const persist = async (msgs: AiMessage[]) => {
+    if (msgs.length === 0) return;
+    try {
+      if (currentId) {
+        await fetch(`/api/integrations/linkedin/ai-conversations/${currentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: msgs }),
+        });
+      } else {
+        const r = await fetch('/api/integrations/linkedin/ai-conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: msgs }),
+        });
+        const j = await r.json();
+        if (r.ok && j.conversation?.id) {
+          setCurrentId(j.conversation.id);
+        }
+      }
+      // Refresh la liste pour que le titre / l'ordre se mettent à jour
+      loadConversations();
+    } catch {
+      // Silent — l'historique est best-effort, on bloque pas l'UX du chat
+    }
+  };
 
   const send = async () => {
     const txt = input.trim();
@@ -308,12 +357,15 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
         }
       }
 
-      setMessages([
+      const finalMessages: AiMessage[] = [
         ...newMessages,
         { role: 'assistant', content: finalText, toolCalls: finalTools },
-      ]);
+      ];
+      setMessages(finalMessages);
       setStreamingText('');
       setStreamingTools([]);
+      // Auto-save côté serveur
+      persist(finalMessages);
     } catch (e: any) {
       onToast({ type: 'err', msg: e?.message || 'Erreur réseau' });
     } finally {
@@ -321,13 +373,50 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
     }
   };
 
-  const reset = () => {
+  const newChat = () => {
     if (streaming) return;
-    if (messages.length === 0 || confirm('Effacer la conversation ?')) {
-      setMessages([]);
+    setMessages([]);
+    setStreamingText('');
+    setStreamingTools([]);
+    setCurrentId(null);
+    setInput('');
+  };
+
+  const loadConversation = async (id: string) => {
+    if (streaming || id === currentId) return;
+    setLoadingConv(true);
+    try {
+      const r = await fetch(`/api/integrations/linkedin/ai-conversations/${id}`);
+      const j = await r.json();
+      if (!r.ok) {
+        onToast({ type: 'err', msg: j.error || 'Erreur chargement conversation' });
+        return;
+      }
+      setMessages((j.conversation?.messages || []) as AiMessage[]);
+      setCurrentId(id);
       setStreamingText('');
       setStreamingTools([]);
+    } catch (e: any) {
+      onToast({ type: 'err', msg: e?.message || 'Erreur réseau' });
+    } finally {
+      setLoadingConv(false);
     }
+  };
+
+  const deleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Supprimer définitivement cette conversation ?')) return;
+    try {
+      const r = await fetch(`/api/integrations/linkedin/ai-conversations/${id}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        onToast({ type: 'err', msg: j.error || 'Erreur suppression' });
+        return;
+      }
+      // Si on supprime la conv courante, on reset
+      if (id === currentId) newChat();
+      loadConversations();
+    } catch {}
   };
 
   const presetPrompts = [
@@ -337,77 +426,148 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
     'Rédige un retour d\'expérience client en 200 mots sur un commerce qui a x10 son CA',
   ];
 
+  const formatRelative = (iso: string) => {
+    const d = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(d / 60000);
+    if (m < 1) return "à l'instant";
+    if (m < 60) return `il y a ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `il y a ${h}h`;
+    const j = Math.floor(h / 24);
+    if (j < 7) return `il y a ${j}j`;
+    return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
+
   return (
     <Card title="Assistant IA — Rédaction & programmation" icon={Bot} subtitle="Llama 3.3 70B (Groq) + outils custom (create_draft, schedule_post, list_scheduled, cancel_scheduled)">
-      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 mb-4 max-h-[60vh] overflow-y-auto" ref={scrollRef}>
-        {messages.length === 0 && !streamingText && (
-          <div className="py-8 text-center">
-            <Wand2 size={32} className="mx-auto text-lilac mb-3" />
-            <p className="text-white/60 text-sm mb-4">Demande-moi de rédiger un post, d'en programmer plusieurs, ou de gérer ton planning éditorial.</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {presetPrompts.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setInput(p)}
-                  className="text-xs px-3 py-1.5 rounded-full bg-lilac/10 border border-lilac/30 text-lilac hover:bg-lilac/20"
-                >
-                  {p.length > 60 ? p.slice(0, 60) + '…' : p}
-                </button>
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
+        {/* Sidebar historique */}
+        <aside className="rounded-xl border border-white/10 bg-white/[0.02] p-3 max-h-[60vh] overflow-y-auto flex flex-col gap-2">
+          <button
+            onClick={newChat}
+            disabled={streaming}
+            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-lilac text-ink font-semibold text-sm hover:bg-white transition-colors disabled:opacity-50"
+          >
+            <Plus size={14} /> Nouvelle conversation
+          </button>
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/40 mt-2 mb-1 px-1">
+            <History size={11} /> Historique ({conversations.length})
+          </div>
+          {conversations.length === 0 && (
+            <div className="text-xs text-white/40 italic px-1 py-2">
+              Aucune conversation pour le moment.
+            </div>
+          )}
+          {conversations.map((c) => {
+            const active = c.id === currentId;
+            return (
+              <button
+                key={c.id}
+                onClick={() => loadConversation(c.id)}
+                disabled={streaming}
+                className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-colors text-xs ${
+                  active
+                    ? 'bg-lilac/15 border-lilac/40 text-white'
+                    : 'border-transparent hover:bg-white/5 text-white/70 hover:text-white'
+                } disabled:opacity-50`}
+              >
+                <div className="flex items-start justify-between gap-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium line-clamp-2 leading-tight">
+                      {c.title || 'Sans titre'}
+                    </div>
+                    <div className="text-[10px] text-white/40 mt-0.5">{formatRelative(c.updated_at)}</div>
+                  </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => deleteConversation(c.id, e)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        deleteConversation(c.id, e as any);
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity p-1 cursor-pointer"
+                    title="Supprimer"
+                  >
+                    <Trash2 size={11} />
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </aside>
+
+        {/* Zone de chat */}
+        <div className="flex flex-col">
+          <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 mb-4 max-h-[60vh] overflow-y-auto flex-1" ref={scrollRef}>
+            {loadingConv && (
+              <div className="text-white/40 text-xs italic flex items-center gap-2 py-4">
+                <RefreshCw size={12} className="animate-spin" /> Chargement de la conversation…
+              </div>
+            )}
+            {!loadingConv && messages.length === 0 && !streamingText && (
+              <div className="py-8 text-center">
+                <Wand2 size={32} className="mx-auto text-lilac mb-3" />
+                <p className="text-white/60 text-sm mb-4">Demande-moi de rédiger un post, d'en programmer plusieurs, ou de gérer ton planning éditorial.</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {presetPrompts.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setInput(p)}
+                      className="text-xs px-3 py-1.5 rounded-full bg-lilac/10 border border-lilac/30 text-lilac hover:bg-lilac/20"
+                    >
+                      {p.length > 60 ? p.slice(0, 60) + '…' : p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {messages.map((m, i) => (
+                <MessageBubble key={i} message={m} />
               ))}
+              {streaming && (streamingText || streamingTools.length > 0) && (
+                <MessageBubble
+                  message={{
+                    role: 'assistant',
+                    content: streamingText || '…',
+                    toolCalls: streamingTools,
+                  }}
+                  streaming
+                />
+              )}
+              {streaming && !streamingText && streamingTools.length === 0 && (
+                <div className="text-white/40 text-xs italic flex items-center gap-2">
+                  <RefreshCw size={12} className="animate-spin" /> L'assistant réfléchit…
+                </div>
+              )}
             </div>
           </div>
-        )}
 
-        <div className="space-y-4">
-          {messages.map((m, i) => (
-            <MessageBubble key={i} message={m} />
-          ))}
-          {streaming && (streamingText || streamingTools.length > 0) && (
-            <MessageBubble
-              message={{
-                role: 'assistant',
-                content: streamingText || '…',
-                toolCalls: streamingTools,
+          <div className="flex gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
               }}
-              streaming
+              placeholder="Demande à l'assistant... (Cmd+Entrée pour envoyer)"
+              rows={3}
+              disabled={streaming}
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-lilac/50 text-sm resize-none disabled:opacity-50"
             />
-          )}
-          {streaming && !streamingText && streamingTools.length === 0 && (
-            <div className="text-white/40 text-xs italic flex items-center gap-2">
-              <RefreshCw size={12} className="animate-spin" /> L'assistant réfléchit…
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
-          }}
-          placeholder="Demande à l'assistant... (Cmd+Entrée pour envoyer)"
-          rows={3}
-          disabled={streaming}
-          className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-lilac/50 text-sm resize-none disabled:opacity-50"
-        />
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={send}
-            disabled={!input.trim() || streaming}
-            className="inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-5 py-3 rounded-xl text-sm hover:bg-white transition-colors disabled:opacity-50"
-          >
-            {streaming ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-          </button>
-          <button
-            onClick={reset}
-            disabled={streaming}
-            className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 px-5 py-2 rounded-xl text-xs disabled:opacity-50"
-            title="Effacer la conversation"
-          >
-            <Trash2 size={12} />
-          </button>
+            <button
+              onClick={send}
+              disabled={!input.trim() || streaming}
+              className="inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-5 py-3 rounded-xl text-sm hover:bg-white transition-colors disabled:opacity-50"
+              title="Envoyer (Cmd+Entrée)"
+            >
+              {streaming ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+            </button>
+          </div>
         </div>
       </div>
     </Card>
