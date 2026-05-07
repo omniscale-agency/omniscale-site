@@ -82,6 +82,64 @@ export async function fetchRecentEventCalls(opts: {
 }
 
 /**
+ * Annule un eventCall iClosed.
+ * PUT /v1/eventCalls/cancel — body { id, cancelReason? }
+ * Renvoie 200 + { data:{ eventCall:{ message, status } } } en cas de succès.
+ */
+export async function cancelCall(opts: {
+  apiKey: string;
+  id: number | string;
+  reason?: string;
+}): Promise<void> {
+  const r = await fetch(`${BASE_URL}/v1/eventCalls/cancel`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: typeof opts.id === 'string' ? parseInt(opts.id, 10) : opts.id,
+      cancelReason: opts.reason || 'Cancelled from Omniscale SaaS',
+    }),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`iClosed cancel failed (${r.status}): ${t.slice(0, 300)}`);
+  }
+}
+
+/**
+ * Reprogramme un eventCall iClosed.
+ * PUT /v1/eventCalls/reschedule — body { id, dateTime, timeZone, rescheduleReason? }
+ * `dateTime` ISO 8601 en UTC. `timeZone` IANA (ex: "Europe/Paris").
+ */
+export async function rescheduleCall(opts: {
+  apiKey: string;
+  id: number | string;
+  dateTime: string;       // "2026-07-24T16:45:00.000Z"
+  timeZone?: string;      // default "Europe/Paris"
+  reason?: string;
+}): Promise<void> {
+  const r = await fetch(`${BASE_URL}/v1/eventCalls/reschedule`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${opts.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: typeof opts.id === 'string' ? parseInt(opts.id, 10) : opts.id,
+      dateTime: opts.dateTime,
+      timeZone: opts.timeZone || 'Europe/Paris',
+      rescheduleReason: opts.reason || 'Reprogrammé depuis Omniscale SaaS',
+    }),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`iClosed reschedule failed (${r.status}): ${t.slice(0, 300)}`);
+  }
+}
+
+/**
  * Mappe un eventCall iClosed vers le shape de notre table `bookings`.
  * Détermine l'event status à partir des champs cancelReason / rescheduledBy / task.outcome.
  */

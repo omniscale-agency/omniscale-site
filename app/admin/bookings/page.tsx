@@ -413,36 +413,56 @@ function BookingCard({ booking: b, onChange }: { booking: Booking; onChange: () 
     setTimeout(() => setToast(''), 4000);
   };
 
+  const isIclosed = b.source === 'iclosed';
+
   const handleDelete = async () => {
-    if (!confirm(`Supprimer définitivement le RDV de ${b.invitee_name || b.invitee_email || 'ce lead'} ?\n\nCette action ne supprime pas le RDV côté iClosed — fais-le aussi là-bas si nécessaire.`)) return;
+    const msg = isIclosed
+      ? `Annuler le RDV de ${b.invitee_name || b.invitee_email || 'ce lead'} ?\n\n→ Le RDV sera annulé côté iClosed (le lead recevra la notif) ET supprimé du SaaS.`
+      : `Supprimer définitivement le RDV de ${b.invitee_name || b.invitee_email || 'ce lead'} ?`;
+    if (!confirm(msg)) return;
     setBusy(true);
     setMenuOpen(false);
-    const sb = supabaseBrowser();
-    const { error } = await sb.from('bookings').delete().eq('id', b.id);
-    if (error) {
-      showToast(`Erreur : ${error.message}`);
-    } else {
-      showToast('✓ Booking supprimé');
-      onChange();
+    try {
+      const r = await fetch(`/api/admin/bookings/${b.id}`, { method: 'DELETE' });
+      const j = await r.json();
+      if (!r.ok) {
+        showToast(`Erreur : ${j.error || r.status}`);
+      } else if (j.warnings && j.warnings.length > 0) {
+        showToast(`⚠ Supprimé localement, mais : ${j.warnings.join(' · ')}`);
+        onChange();
+      } else {
+        showToast(j.cancelled_in_iclosed ? '✓ Annulé sur iClosed + supprimé' : '✓ Booking supprimé');
+        onChange();
+      }
+    } catch (e: any) {
+      showToast(`Erreur réseau : ${e?.message}`);
     }
     setBusy(false);
   };
 
   const handleReschedule = async (newDateTime: string) => {
     setBusy(true);
-    const sb = supabaseBrowser();
-    const { error } = await sb
-      .from('bookings')
-      .update({
-        scheduled_at: new Date(newDateTime).toISOString(),
-        event: 'rescheduled',
-      })
-      .eq('id', b.id);
-    if (error) {
-      showToast(`Erreur : ${error.message}`);
-    } else {
-      showToast('✓ Reprogrammé (côté SaaS uniquement)');
-      onChange();
+    try {
+      const r = await fetch(`/api/admin/bookings/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reschedule',
+          scheduled_at: new Date(newDateTime).toISOString(),
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        showToast(`Erreur : ${j.error || r.status}`);
+      } else if (j.warnings && j.warnings.length > 0) {
+        showToast(`⚠ Reprogrammé localement, mais : ${j.warnings.join(' · ')}`);
+        onChange();
+      } else {
+        showToast(j.synced_with_iclosed ? '✓ Reprogrammé sur iClosed + SaaS' : '✓ Reprogrammé');
+        onChange();
+      }
+    } catch (e: any) {
+      showToast(`Erreur réseau : ${e?.message}`);
     }
     setBusy(false);
     setRescheduleOpen(false);
@@ -450,13 +470,24 @@ function BookingCard({ booking: b, onChange }: { booking: Booking; onChange: () 
 
   const handleStatusChange = async (newStatus: BookingEvent) => {
     setBusy(true);
-    const sb = supabaseBrowser();
-    const { error } = await sb.from('bookings').update({ event: newStatus }).eq('id', b.id);
-    if (error) {
-      showToast(`Erreur : ${error.message}`);
-    } else {
-      showToast(`✓ Statut → ${EVENT_META[newStatus].label}`);
-      onChange();
+    try {
+      const r = await fetch(`/api/admin/bookings/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status', event: newStatus }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        showToast(`Erreur : ${j.error || r.status}`);
+      } else if (j.warnings && j.warnings.length > 0) {
+        showToast(`⚠ Statut changé, mais : ${j.warnings.join(' · ')}`);
+        onChange();
+      } else {
+        showToast(`✓ Statut → ${EVENT_META[newStatus].label}`);
+        onChange();
+      }
+    } catch (e: any) {
+      showToast(`Erreur réseau : ${e?.message}`);
     }
     setBusy(false);
     setStatusOpen(false);
@@ -619,6 +650,7 @@ function BookingCard({ booking: b, onChange }: { booking: Booking; onChange: () 
         <RescheduleModal
           currentDate={b.scheduled_at}
           inviteeName={b.invitee_name || b.invitee_email || 'ce lead'}
+          isIclosed={isIclosed}
           onClose={() => setRescheduleOpen(false)}
           onConfirm={handleReschedule}
         />
@@ -627,9 +659,10 @@ function BookingCard({ booking: b, onChange }: { booking: Booking; onChange: () 
   );
 }
 
-function RescheduleModal({ currentDate, inviteeName, onClose, onConfirm }: {
+function RescheduleModal({ currentDate, inviteeName, isIclosed, onClose, onConfirm }: {
   currentDate: string | null;
   inviteeName: string;
+  isIclosed: boolean;
   onClose: () => void;
   onConfirm: (newDateTime: string) => void;
 }) {
@@ -655,7 +688,11 @@ function RescheduleModal({ currentDate, inviteeName, onClose, onConfirm }: {
         </div>
         <h3 className="font-display font-bold text-xl mb-1">RDV avec {inviteeName}</h3>
         <p className="text-xs text-white/50 mb-5">
-          Cette action met à jour la date côté SaaS uniquement. <strong className="text-amber-300">Pense à la modifier aussi côté iClosed</strong> si tu veux que le lead voie le changement (mail de notification, calendrier, etc.).
+          {isIclosed ? (
+            <>Cette action <strong className="text-green-300">sera propagée à iClosed</strong> automatiquement (le lead recevra la notif de changement et son calendrier sera mis à jour).</>
+          ) : (
+            <>Cette action met à jour la date côté SaaS uniquement (booking non-iClosed).</>
+          )}
         </p>
 
         <label className="block text-xs uppercase tracking-widest text-white/50 mb-2">Nouvelle date & heure</label>
