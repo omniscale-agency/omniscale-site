@@ -338,7 +338,7 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
   ];
 
   return (
-    <Card title="Assistant IA — Rédaction & programmation" icon={Bot} subtitle="Gemini 2.5 Flash + outils custom (create_draft, schedule_post, list_scheduled, cancel_scheduled)">
+    <Card title="Assistant IA — Rédaction & programmation" icon={Bot} subtitle="Llama 3.3 70B (Groq) + outils custom (create_draft, schedule_post, list_scheduled, cancel_scheduled)">
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 mb-4 max-h-[60vh] overflow-y-auto" ref={scrollRef}>
         {messages.length === 0 && !streamingText && (
           <div className="py-8 text-center">

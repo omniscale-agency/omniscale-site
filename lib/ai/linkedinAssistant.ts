@@ -1,26 +1,29 @@
 /**
  * Assistant IA pour la rédaction + programmation de posts LinkedIn.
- * Utilise Google Gemini 2.5 Flash (free tier généreux : 15 req/min, 1M tokens/jour)
- * avec custom tools en function calling natif.
+ * Utilise Groq + Llama 3.3 70B Versatile (free tier 30 req/min, 14 400 req/jour)
+ * avec function calling natif format OpenAI-compatible.
  *
  * Architecture :
  *  - Le client envoie un historique de chat → /api/integrations/linkedin/ai-chat
- *  - Le serveur stream la réponse Gemini via SSE
- *  - Pendant le stream, si Gemini appelle un outil, on l'exécute server-side
- *    et on renvoie le résultat à Gemini (boucle agentique manuelle)
+ *  - Le serveur stream la réponse via SSE
+ *  - Pendant le stream, si le model appelle un outil, on l'exécute server-side
+ *    et on renvoie le résultat au model (boucle agentique manuelle)
  *  - Le client affiche le texte au fil de l'eau + une notification quand
  *    un outil est utilisé
  *
- * Migration : on est passés d'Anthropic Claude à Gemini parce que les credits
- * Anthropic étaient épuisés. Gemini free tier suffit largement pour cet usage
- * (quelques posts par jour). L'interface publique (StreamEvent, executeTool,
- * streamAssistant) est inchangée — l'API route et l'UI n'ont pas bougé.
+ * Historique provider :
+ *  - v1: Anthropic Claude (crédits épuisés)
+ *  - v2: Google Gemini 2.5 Flash (compte flag PERMISSION_DENIED même après trial $300)
+ *  - v3: Groq Llama 3.3 70B ← actuel, free tier ouvert sans bullshit
+ *
+ * L'interface publique (StreamEvent, executeTool, streamAssistant, ChatMessage)
+ * est inchangée — l'API route et l'UI n'ont pas bougé.
  */
 
-import { GoogleGenAI, Type, Content, Part, FunctionDeclaration } from '@google/genai';
+import Groq from 'groq-sdk';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export const MODEL = 'gemini-2.5-flash';
+export const MODEL = 'llama-3.3-70b-versatile';
 
 /** System prompt — gardé stable. */
 export const SYSTEM_PROMPT = `Tu es l'assistant marketing d'Omniscale, une agence française qui scale les business via social media, ads, sites internet, marketing d'influence et production de contenu.
@@ -59,61 +62,80 @@ Tu as accès à 4 outils :
 Aujourd'hui c'est ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`;
 
 // ────────────────────────────────────────────────────────
-// Tool definitions (Gemini function declaration format)
+// Tool definitions (OpenAI-compatible format used by Groq)
 // ────────────────────────────────────────────────────────
-const TOOLS: FunctionDeclaration[] = [
+const TOOLS: Array<{
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+  };
+}> = [
   {
-    name: 'create_draft',
-    description: 'Crée un brouillon de post LinkedIn (non publié). À utiliser quand tu rédiges un post pour validation.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        text: {
-          type: Type.STRING,
-          description: 'Le contenu textuel du post (max 3000 caractères, supporte les retours à la ligne, hashtags, emojis).',
+    type: 'function',
+    function: {
+      name: 'create_draft',
+      description: 'Crée un brouillon de post LinkedIn (non publié). À utiliser quand tu rédiges un post pour validation.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: {
+            type: 'string',
+            description: 'Le contenu textuel du post (max 3000 caractères, supporte les retours à la ligne, hashtags, emojis).',
+          },
         },
+        required: ['text'],
       },
-      required: ['text'],
     },
   },
   {
-    name: 'schedule_post',
-    description: 'Programme un post LinkedIn pour publication automatique à une date/heure précise. Le post sera publié par un cron tous les 5 minutes une fois la date atteinte.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        text: {
-          type: Type.STRING,
-          description: 'Le contenu du post à programmer.',
+    type: 'function',
+    function: {
+      name: 'schedule_post',
+      description: 'Programme un post LinkedIn pour publication automatique à une date/heure précise. Le post sera publié par un cron tous les 5 minutes une fois la date atteinte.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: {
+            type: 'string',
+            description: 'Le contenu du post à programmer.',
+          },
+          scheduled_at: {
+            type: 'string',
+            description: 'Date et heure de publication ISO 8601 avec timezone Europe/Paris, ex: "2026-05-15T09:00:00+02:00". Doit être dans le futur.',
+          },
         },
-        scheduled_at: {
-          type: Type.STRING,
-          description: 'Date et heure de publication ISO 8601 avec timezone Europe/Paris, ex: "2026-05-15T09:00:00+02:00". Doit être dans le futur.',
-        },
+        required: ['text', 'scheduled_at'],
       },
-      required: ['text', 'scheduled_at'],
     },
   },
   {
-    name: 'list_scheduled',
-    description: 'Liste les posts LinkedIn actuellement programmés (status=scheduled), triés par date de publication ascendante.',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {},
+    type: 'function',
+    function: {
+      name: 'list_scheduled',
+      description: 'Liste les posts LinkedIn actuellement programmés (status=scheduled), triés par date de publication ascendante.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
     },
   },
   {
-    name: 'cancel_scheduled',
-    description: 'Annule un post programmé via son ID. Le post passe de status=scheduled à status=draft (non supprimé, l\'admin peut le réutiliser).',
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        post_id: {
-          type: Type.STRING,
-          description: 'L\'UUID du post à annuler (obtenu via list_scheduled).',
+    type: 'function',
+    function: {
+      name: 'cancel_scheduled',
+      description: "Annule un post programmé via son ID. Le post passe de status=scheduled à status=draft (non supprimé, l'admin peut le réutiliser).",
+      parameters: {
+        type: 'object',
+        properties: {
+          post_id: {
+            type: 'string',
+            description: "L'UUID du post à annuler (obtenu via list_scheduled).",
+          },
         },
+        required: ['post_id'],
       },
-      required: ['post_id'],
     },
   },
 ];
@@ -235,10 +257,12 @@ export interface StreamEvent {
 }
 
 // ────────────────────────────────────────────────────────
-// Streaming chat with manual tool loop (Gemini)
+// Streaming chat with manual tool loop (Groq)
 // ────────────────────────────────────────────────────────
+type ChatCompletionMessageParam = Groq.Chat.Completions.ChatCompletionMessageParam;
+
 /**
- * Streame la réponse de l'assistant en exécutant les function calls server-side.
+ * Streame la réponse de l'assistant en exécutant les tool_calls server-side.
  * Yield des StreamEvents qu'on peut sérialiser en SSE côté API route.
  *
  * Usage : `for await (const ev of streamAssistant(messages, userId)) { ... }`
@@ -247,22 +271,24 @@ export async function* streamAssistant(
   messages: ChatMessage[],
   userId: string,
 ): AsyncGenerator<StreamEvent> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    yield { type: 'error', error: 'GEMINI_API_KEY non configuré côté serveur (à ajouter dans Vercel env vars).' };
+    yield { type: 'error', error: 'GROQ_API_KEY non configuré côté serveur (à ajouter dans Vercel env vars).' };
     return;
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const groq = new Groq({ apiKey });
 
-  // Convertit l'historique chat en format Gemini Content[]
-  // (user → 'user', assistant → 'model')
-  const conversation: Content[] = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
+  // Convert ChatMessage[] → OpenAI format avec system prompt en tête
+  const conversation: ChatCompletionMessageParam[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
+  ];
 
-  // Boucle agentique : on continue tant que le model retourne des function calls
+  // Boucle agentique
   let iter = 0;
   const MAX_ITER = 8;
   let totalInputTokens = 0;
@@ -271,99 +297,104 @@ export async function* streamAssistant(
   while (iter < MAX_ITER) {
     iter++;
     let collectedText = '';
-    let collectedFunctionCalls: Array<{ name: string; args: Record<string, any> }> = [];
+    // Tool calls accumulés depuis les chunks (chaque chunk peut contenir des deltas partiels)
+    const toolCalls: Array<{ id: string; name: string; argsJson: string }> = [];
 
     try {
-      const stream = await ai.models.generateContentStream({
+      const stream = await groq.chat.completions.create({
         model: MODEL,
-        contents: conversation,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          tools: [{ functionDeclarations: TOOLS }],
-          temperature: 0.7,
-        },
+        messages: conversation,
+        tools: TOOLS,
+        tool_choice: 'auto',
+        temperature: 0.7,
+        max_tokens: 4096,
+        stream: true,
       });
 
       for await (const chunk of stream) {
-        // Stream text delta
-        const txt = chunk.text;
-        if (txt) {
-          collectedText += txt;
-          yield { type: 'text', text: txt };
+        const choice = chunk.choices?.[0];
+        if (!choice) continue;
+        const delta = choice.delta;
+
+        // Text delta
+        if (delta?.content) {
+          collectedText += delta.content;
+          yield { type: 'text', text: delta.content };
         }
-        // Function calls (peuvent arriver dans le même chunk ou les suivants)
-        const calls = chunk.functionCalls;
-        if (calls && calls.length > 0) {
-          for (const c of calls) {
-            collectedFunctionCalls.push({
-              name: c.name || '',
-              args: (c.args || {}) as Record<string, any>,
-            });
+
+        // Tool call deltas (peuvent arriver fragmentés sur plusieurs chunks)
+        if (delta?.tool_calls) {
+          for (const tcDelta of delta.tool_calls) {
+            const idx = tcDelta.index ?? 0;
+            if (!toolCalls[idx]) {
+              toolCalls[idx] = { id: '', name: '', argsJson: '' };
+            }
+            if (tcDelta.id) toolCalls[idx].id = tcDelta.id;
+            if (tcDelta.function?.name) toolCalls[idx].name = tcDelta.function.name;
+            if (tcDelta.function?.arguments) toolCalls[idx].argsJson += tcDelta.function.arguments;
           }
         }
-        // Track usage si dispo dans le dernier chunk
-        const usage = chunk.usageMetadata;
+
+        // Track usage si dispo (dernier chunk — Groq peut le mettre dans x_groq.usage)
+        const usage = (chunk as any).usage || (chunk as any).x_groq?.usage;
         if (usage) {
-          totalInputTokens = usage.promptTokenCount || totalInputTokens;
-          totalOutputTokens = usage.candidatesTokenCount || totalOutputTokens;
+          totalInputTokens = usage.prompt_tokens || totalInputTokens;
+          totalOutputTokens = usage.completion_tokens || totalOutputTokens;
         }
       }
     } catch (e: any) {
-      yield { type: 'error', error: e?.message || 'Erreur Gemini API' };
+      yield { type: 'error', error: e?.message || 'Erreur Groq API' };
       return;
     }
 
-    // Construit le message assistant à pousser dans l'historique
-    const assistantParts: Part[] = [];
-    if (collectedText) {
-      assistantParts.push({ text: collectedText });
-    }
-    for (const fc of collectedFunctionCalls) {
-      assistantParts.push({ functionCall: { name: fc.name, args: fc.args } });
-    }
-    if (assistantParts.length > 0) {
-      conversation.push({ role: 'model', parts: assistantParts });
+    // Assistant message à pousser dans l'historique
+    if (toolCalls.length > 0) {
+      conversation.push({
+        role: 'assistant',
+        content: collectedText || null,
+        tool_calls: toolCalls.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: tc.argsJson },
+        })),
+      });
+    } else if (collectedText) {
+      conversation.push({ role: 'assistant', content: collectedText });
     }
 
-    // Pas de function calls → fin du tour
-    if (collectedFunctionCalls.length === 0) {
+    // Pas de tool calls → fin du tour
+    if (toolCalls.length === 0) {
       yield {
         type: 'done',
-        usage: {
-          input_tokens: totalInputTokens,
-          output_tokens: totalOutputTokens,
-        },
+        usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens },
       };
       return;
     }
 
-    // Exécute chaque function call et accumule les responses
-    const responseParts: Part[] = [];
-    for (const fc of collectedFunctionCalls) {
+    // Exécute chaque tool call et accumule les responses
+    for (const tc of toolCalls) {
+      let parsedArgs: any = {};
+      try { parsedArgs = JSON.parse(tc.argsJson); } catch {}
+
       yield {
         type: 'tool_use',
-        tool_name: fc.name,
-        tool_input: fc.args,
+        tool_name: tc.name,
+        tool_input: parsedArgs,
       };
-      const resultJson = await executeTool(fc.name, fc.args, userId);
+      const resultJson = await executeTool(tc.name, parsedArgs, userId);
       yield {
         type: 'tool_result',
-        tool_name: fc.name,
+        tool_name: tc.name,
         tool_result: resultJson,
       };
-      // Gemini attend un objet, pas une string — on parse pour donner un response structuré
-      let parsed: any;
-      try { parsed = JSON.parse(resultJson); } catch { parsed = { result: resultJson }; }
-      responseParts.push({
-        functionResponse: {
-          name: fc.name,
-          response: parsed,
-        },
+
+      // Append tool message (Groq/OpenAI format)
+      conversation.push({
+        role: 'tool',
+        tool_call_id: tc.id,
+        content: resultJson,
       });
     }
-
-    // Ajoute les function responses comme tour 'user' (convention Gemini)
-    conversation.push({ role: 'user', parts: responseParts });
     // Loop continue
   }
 
