@@ -14,8 +14,8 @@ export const YOUTUBE_URL = 'https://www.youtube.com/@omniscale.agency';
 export const TRUSTPILOT = {
   url: 'https://fr.trustpilot.com/review/omniscale.fr',
   reviewUrl: 'https://fr.trustpilot.com/evaluate/omniscale.fr',
-  rating: 4.1,
-  reviewCount: 5,
+  rating: 4.2,
+  reviewCount: 6,
   /** Label officiel Trustpilot — Excellent / Bien / Moyen / Mauvais / Médiocre */
   label: 'Bien',
 } as const;
