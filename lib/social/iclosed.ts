@@ -8,7 +8,7 @@
 
 const BASE_URL = 'https://public.api.iclosed.io';
 
-export type IClosedEventType = 'UPCOMING' | 'PAST' | 'CANCELLED' | 'NO_SHOW';
+export type IClosedEventType = 'UPCOMING' | 'PAST' | 'ALL';
 
 export interface IClosedEventCall {
   id: number;
@@ -57,37 +57,28 @@ interface ListResponse {
 }
 
 /**
- * Fetch les eventCalls iClosed avec pagination simple.
- * Combine les types UPCOMING + PAST + CANCELLED pour avoir une vue complète.
- * `limit` = max par appel par type (max iClosed = 50 par défaut).
+ * Fetch les eventCalls iClosed.
+ * Par défaut on récupère ALL (UPCOMING + PAST + cancelled inclus dans PAST).
+ * `limit` = max d'items renvoyés (max iClosed = 50 par défaut).
  */
 export async function fetchRecentEventCalls(opts: {
   apiKey: string;
-  types?: IClosedEventType[];
+  type?: IClosedEventType;
   limit?: number;
 }): Promise<IClosedEventCall[]> {
-  const types = opts.types || ['UPCOMING', 'PAST', 'CANCELLED'];
+  const type = opts.type || 'ALL';
   const limit = opts.limit || 50;
 
-  const all: IClosedEventCall[] = [];
-  for (const eventType of types) {
-    const url = `${BASE_URL}/v1/eventCalls?eventType=${eventType}&limit=${limit}`;
-    const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${opts.apiKey}` },
-    });
-    if (!r.ok) {
-      const t = await r.text();
-      throw new Error(`iClosed API ${eventType} failed (${r.status}): ${t.slice(0, 300)}`);
-    }
-    const json = (await r.json()) as ListResponse;
-    const calls = json?.data?.eventCalls || [];
-    all.push(...calls);
+  const url = `${BASE_URL}/v1/eventCalls?eventType=${type}&limit=${limit}`;
+  const r = await fetch(url, {
+    headers: { Authorization: `Bearer ${opts.apiKey}` },
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(`iClosed API ${type} failed (${r.status}): ${t.slice(0, 300)}`);
   }
-
-  // Dédupe par id (un call peut apparaître dans plusieurs eventTypes — ex: PAST + completed)
-  const map = new Map<number, IClosedEventCall>();
-  for (const c of all) map.set(c.id, c);
-  return Array.from(map.values());
+  const json = (await r.json()) as ListResponse;
+  return json?.data?.eventCalls || [];
 }
 
 /**
