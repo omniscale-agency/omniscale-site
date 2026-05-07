@@ -599,6 +599,7 @@ function ToolCallBadge({ tool }: { tool: { name: string; input: any; result?: st
   const [open, setOpen] = useState(false);
   const labels: Record<string, { label: string; icon: any }> = {
     create_draft: { label: 'Brouillon créé', icon: Wand2 },
+    publish_now: { label: 'Post publié sur LinkedIn', icon: Send },
     schedule_post: { label: 'Post programmé', icon: CalendarIcon },
     list_scheduled: { label: 'Posts programmés listés', icon: Eye },
     cancel_scheduled: { label: 'Programmation annulée', icon: Trash2 },

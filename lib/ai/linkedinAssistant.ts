@@ -22,6 +22,7 @@
 
 import Groq from 'groq-sdk';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { publishTextPost } from '@/lib/social/linkedin';
 
 export const MODEL = 'llama-3.3-70b-versatile';
 
@@ -42,21 +43,23 @@ Ton job : aider l'admin (Rayan, fondateur) à rédiger et programmer des posts L
 
 # Capacités
 
-Tu as accès à 4 outils :
+Tu as accès à 5 outils :
 
 1. **create_draft** : crée un brouillon de post (status="draft", non publié, non programmé). Utilise-le pour proposer des versions à valider.
-2. **schedule_post** : programme un post pour publication automatique à une date/heure précise (status="scheduled"). Le format de date attendu est ISO 8601 avec timezone Paris (ex: "2026-05-15T09:00:00+02:00").
-3. **list_scheduled** : liste les posts programmés à venir.
-4. **cancel_scheduled** : annule un post programmé via son ID.
+2. **publish_now** : publie IMMÉDIATEMENT un post sur LinkedIn (status="published"). À utiliser quand l'admin te dit "publie", "poste", "envoie", "go", "ok publie-le", "post-le maintenant", etc.
+3. **schedule_post** : programme un post pour publication automatique à une date/heure précise (status="scheduled"). Le format de date attendu est ISO 8601 avec timezone Paris (ex: "2026-05-15T09:00:00+02:00").
+4. **list_scheduled** : liste les posts programmés à venir.
+5. **cancel_scheduled** : annule un post programmé via son ID.
 
 # Comportement attendu
 
-- Quand l'admin te demande "écris un post sur X" → crée 1 draft via create_draft, puis demande s'il veut le programmer
+- Quand l'admin te demande "écris un post sur X" → crée 1 draft via create_draft, puis demande s'il veut le publier maintenant ou programmer
+- Quand il te dit "publie-le" / "post-le" / "envoie" / "go" → publish_now avec le texte du dernier draft proposé
 - Quand il te demande "programme N posts cette semaine sur Y" → crée chaque draft puis programme-les via schedule_post (matin = 9h, midi = 12h30, soir = 18h heure de Paris)
 - Quand il te dit "voir les posts programmés" → list_scheduled
 - Quand il te dit "annule le post du X" → list_scheduled puis cancel_scheduled avec l'ID
 - Sois proactif : si l'admin propose un sujet vague, propose 2-3 angles différents avant d'écrire
-- Toujours montrer le texte du post en clair dans ta réponse, même quand tu utilises create_draft (l'admin doit voir ce qu'il a créé)
+- Toujours montrer le texte du post en clair dans ta réponse, même quand tu utilises create_draft ou publish_now (l'admin doit voir ce qu'il a créé/publié)
 - Conversation en français, même si l'admin t'écrit en anglais.
 
 Aujourd'hui c'est ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`;
@@ -83,6 +86,28 @@ const TOOLS: Array<{
           text: {
             type: 'string',
             description: 'Le contenu textuel du post (max 3000 caractères, supporte les retours à la ligne, hashtags, emojis).',
+          },
+        },
+        required: ['text'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'publish_now',
+      description: 'Publie IMMÉDIATEMENT un post sur LinkedIn (status="published"). À utiliser quand l\'admin valide un draft et veut le poster tout de suite ("publie", "poste", "envoie", "go", etc.). Le post sera visible publiquement sur LinkedIn dès l\'appel.',
+      parameters: {
+        type: 'object',
+        properties: {
+          text: {
+            type: 'string',
+            description: 'Le contenu textuel du post à publier (max 3000 caractères, supporte les retours à la ligne, hashtags, emojis).',
+          },
+          visibility: {
+            type: 'string',
+            enum: ['PUBLIC', 'CONNECTIONS'],
+            description: 'Audience du post. PUBLIC = visible par tout le monde (défaut). CONNECTIONS = visible uniquement par les connexions LinkedIn.',
           },
         },
         required: ['text'],
@@ -171,6 +196,63 @@ export async function executeTool(name: string, input: any, userId: string): Pro
           status: 'draft',
           message: `Brouillon créé. ID: ${data.id}. L'admin peut le publier ou le programmer manuellement depuis l'UI, ou te demander de le programmer.`,
         });
+      }
+      case 'publish_now': {
+        const text = String(input?.text || '').trim();
+        const visibility = (input?.visibility === 'CONNECTIONS' ? 'CONNECTIONS' : 'PUBLIC') as 'PUBLIC' | 'CONNECTIONS';
+        if (!text) return JSON.stringify({ error: 'text manquant' });
+        if (text.length > 3000) return JSON.stringify({ error: 'Post trop long (max 3000 caractères)' });
+
+        // Lookup compte LinkedIn connecté
+        const { data: account } = await sb
+          .from('linkedin_account')
+          .select('access_token, linkedin_id, expires_at')
+          .eq('id', 1)
+          .maybeSingle();
+        if (!account) {
+          return JSON.stringify({ error: 'Aucun compte LinkedIn connecté. L\'admin doit d\'abord se connecter via l\'onglet LinkedIn.' });
+        }
+        if (account.expires_at && new Date(account.expires_at).getTime() < Date.now()) {
+          return JSON.stringify({ error: 'Token LinkedIn expiré. L\'admin doit se reconnecter à LinkedIn.' });
+        }
+
+        // Insert d'un draft pour traçabilité avant l'appel API
+        const { data: draft } = await sb.from('linkedin_posts').insert({
+          text_content: text,
+          status: 'draft',
+          created_by: userId,
+        }).select('id').single();
+
+        try {
+          const { postId } = await publishTextPost({
+            accessToken: account.access_token,
+            userSub: account.linkedin_id!,
+            text,
+            visibility,
+          });
+          if (draft?.id) {
+            await sb.from('linkedin_posts').update({
+              status: 'published',
+              linkedin_post_id: postId,
+              published_at: new Date().toISOString(),
+            }).eq('id', draft.id);
+          }
+          return JSON.stringify({
+            ok: true,
+            post_id: draft?.id,
+            linkedin_post_id: postId,
+            visibility,
+            message: `Post publié sur LinkedIn ! Visible immédiatement. Lien: https://www.linkedin.com/feed/update/${postId}`,
+          });
+        } catch (e: any) {
+          if (draft?.id) {
+            await sb.from('linkedin_posts').update({
+              status: 'failed',
+              error_message: (e?.message || 'unknown').slice(0, 500),
+            }).eq('id', draft.id);
+          }
+          return JSON.stringify({ error: `Échec publication LinkedIn : ${e?.message || 'unknown'}` });
+        }
       }
       case 'schedule_post': {
         const text = String(input?.text || '').trim();
