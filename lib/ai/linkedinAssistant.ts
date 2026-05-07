@@ -1,22 +1,28 @@
 /**
  * Assistant IA pour la rédaction + programmation de posts LinkedIn.
- * Utilise Claude Sonnet 4.6 (adaptive thinking) avec custom tools.
+ * Utilise Google Gemini 2.5 Flash (free tier généreux : 15 req/min, 1M tokens/jour)
+ * avec custom tools en function calling natif.
  *
  * Architecture :
  *  - Le client envoie un historique de chat → /api/integrations/linkedin/ai-chat
- *  - Le serveur stream la réponse Claude via SSE
- *  - Pendant le stream, si Claude appelle un outil, on l'exécute server-side
- *    et on renvoie le résultat à Claude (boucle agentique manuelle)
+ *  - Le serveur stream la réponse Gemini via SSE
+ *  - Pendant le stream, si Gemini appelle un outil, on l'exécute server-side
+ *    et on renvoie le résultat à Gemini (boucle agentique manuelle)
  *  - Le client affiche le texte au fil de l'eau + une notification quand
  *    un outil est utilisé
+ *
+ * Migration : on est passés d'Anthropic Claude à Gemini parce que les credits
+ * Anthropic étaient épuisés. Gemini free tier suffit largement pour cet usage
+ * (quelques posts par jour). L'interface publique (StreamEvent, executeTool,
+ * streamAssistant) est inchangée — l'API route et l'UI n'ont pas bougé.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, Type, Content, Part, FunctionDeclaration } from '@google/genai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export const MODEL = 'claude-sonnet-4-6';
+export const MODEL = 'gemini-2.5-flash';
 
-/** System prompt — gardé stable pour bénéficier du prompt caching. */
+/** System prompt — gardé stable. */
 export const SYSTEM_PROMPT = `Tu es l'assistant marketing d'Omniscale, une agence française qui scale les business via social media, ads, sites internet, marketing d'influence et production de contenu.
 
 Ton job : aider l'admin (Rayan, fondateur) à rédiger et programmer des posts LinkedIn percutants pour le compte Omniscale.
@@ -53,17 +59,17 @@ Tu as accès à 4 outils :
 Aujourd'hui c'est ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`;
 
 // ────────────────────────────────────────────────────────
-// Tool definitions (Anthropic format)
+// Tool definitions (Gemini function declaration format)
 // ────────────────────────────────────────────────────────
-export const TOOLS: Anthropic.Tool[] = [
+const TOOLS: FunctionDeclaration[] = [
   {
     name: 'create_draft',
     description: 'Crée un brouillon de post LinkedIn (non publié). À utiliser quand tu rédiges un post pour validation.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: Type.OBJECT,
       properties: {
         text: {
-          type: 'string',
+          type: Type.STRING,
           description: 'Le contenu textuel du post (max 3000 caractères, supporte les retours à la ligne, hashtags, emojis).',
         },
       },
@@ -73,15 +79,15 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'schedule_post',
     description: 'Programme un post LinkedIn pour publication automatique à une date/heure précise. Le post sera publié par un cron tous les 5 minutes une fois la date atteinte.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: Type.OBJECT,
       properties: {
         text: {
-          type: 'string',
+          type: Type.STRING,
           description: 'Le contenu du post à programmer.',
         },
         scheduled_at: {
-          type: 'string',
+          type: Type.STRING,
           description: 'Date et heure de publication ISO 8601 avec timezone Europe/Paris, ex: "2026-05-15T09:00:00+02:00". Doit être dans le futur.',
         },
       },
@@ -91,19 +97,19 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'list_scheduled',
     description: 'Liste les posts LinkedIn actuellement programmés (status=scheduled), triés par date de publication ascendante.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: Type.OBJECT,
       properties: {},
     },
   },
   {
     name: 'cancel_scheduled',
     description: 'Annule un post programmé via son ID. Le post passe de status=scheduled à status=draft (non supprimé, l\'admin peut le réutiliser).',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: Type.OBJECT,
       properties: {
         post_id: {
-          type: 'string',
+          type: Type.STRING,
           description: 'L\'UUID du post à annuler (obtenu via list_scheduled).',
         },
       },
@@ -113,9 +119,8 @@ export const TOOLS: Anthropic.Tool[] = [
 ];
 
 // ────────────────────────────────────────────────────────
-// Tool executors (server-side, hit Supabase)
+// Tool executors (server-side, hit Supabase) — INCHANGÉ
 // ────────────────────────────────────────────────────────
-/** Renvoie un Supabase client avec service_role (bypass RLS pour écritures admin). */
 function adminClient(): SupabaseClient {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -212,11 +217,11 @@ export async function executeTool(name: string, input: any, userId: string): Pro
 }
 
 // ────────────────────────────────────────────────────────
-// Streaming chat with manual tool loop
+// Public types — INCHANGÉS pour ne pas casser l'API route
 // ────────────────────────────────────────────────────────
 export interface ChatMessage {
   role: 'user' | 'assistant';
-  content: string | Anthropic.ContentBlockParam[];
+  content: string;
 }
 
 export interface StreamEvent {
@@ -229,8 +234,11 @@ export interface StreamEvent {
   usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
 }
 
+// ────────────────────────────────────────────────────────
+// Streaming chat with manual tool loop (Gemini)
+// ────────────────────────────────────────────────────────
 /**
- * Streame la réponse de l'assistant en exécutant les tool_use server-side.
+ * Streame la réponse de l'assistant en exécutant les function calls server-side.
  * Yield des StreamEvents qu'on peut sérialiser en SSE côté API route.
  *
  * Usage : `for await (const ev of streamAssistant(messages, userId)) { ... }`
@@ -239,103 +247,123 @@ export async function* streamAssistant(
   messages: ChatMessage[],
   userId: string,
 ): AsyncGenerator<StreamEvent> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    yield { type: 'error', error: 'ANTHROPIC_API_KEY non configuré côté serveur (à ajouter dans Vercel env vars).' };
+    yield { type: 'error', error: 'GEMINI_API_KEY non configuré côté serveur (à ajouter dans Vercel env vars).' };
     return;
   }
 
-  const client = new Anthropic({ apiKey });
-  const conversationMessages: Anthropic.MessageParam[] = messages.map((m) => ({
-    role: m.role,
-    content: m.content as any,
+  const ai = new GoogleGenAI({ apiKey });
+
+  // Convertit l'historique chat en format Gemini Content[]
+  // (user → 'user', assistant → 'model')
+  const conversation: Content[] = messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
   }));
 
-  // Boucle agentique : on continue tant que stop_reason === 'tool_use'
+  // Boucle agentique : on continue tant que le model retourne des function calls
   let iter = 0;
   const MAX_ITER = 8;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+
   while (iter < MAX_ITER) {
     iter++;
-    let assistantContent: Anthropic.ContentBlock[] = [];
-    let stopReason: Anthropic.Message['stop_reason'] = null;
-    let usage: any = null;
+    let collectedText = '';
+    let collectedFunctionCalls: Array<{ name: string; args: Record<string, any> }> = [];
 
     try {
-      const stream = client.messages.stream({
+      const stream = await ai.models.generateContentStream({
         model: MODEL,
-        max_tokens: 4096,
-        // Top-level cache_control : auto-cache du dernier bloc cacheable
-        // (= system + tools restent cachés entre requêtes)
-        cache_control: { type: 'ephemeral' },
-        system: SYSTEM_PROMPT,
-        tools: TOOLS,
-        messages: conversationMessages,
-        thinking: { type: 'disabled' }, // pas besoin de thinking pour ce use case
+        contents: conversation,
+        config: {
+          systemInstruction: SYSTEM_PROMPT,
+          tools: [{ functionDeclarations: TOOLS }],
+          temperature: 0.7,
+        },
       });
 
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta') {
-          if (event.delta.type === 'text_delta') {
-            yield { type: 'text', text: event.delta.text };
+      for await (const chunk of stream) {
+        // Stream text delta
+        const txt = chunk.text;
+        if (txt) {
+          collectedText += txt;
+          yield { type: 'text', text: txt };
+        }
+        // Function calls (peuvent arriver dans le même chunk ou les suivants)
+        const calls = chunk.functionCalls;
+        if (calls && calls.length > 0) {
+          for (const c of calls) {
+            collectedFunctionCalls.push({
+              name: c.name || '',
+              args: (c.args || {}) as Record<string, any>,
+            });
           }
         }
+        // Track usage si dispo dans le dernier chunk
+        const usage = chunk.usageMetadata;
+        if (usage) {
+          totalInputTokens = usage.promptTokenCount || totalInputTokens;
+          totalOutputTokens = usage.candidatesTokenCount || totalOutputTokens;
+        }
       }
-
-      const finalMsg = await stream.finalMessage();
-      assistantContent = finalMsg.content;
-      stopReason = finalMsg.stop_reason;
-      usage = finalMsg.usage;
     } catch (e: any) {
-      yield { type: 'error', error: e?.message || 'Erreur Anthropic API' };
+      yield { type: 'error', error: e?.message || 'Erreur Gemini API' };
       return;
     }
 
-    // Append l'assistant à l'historique pour la prochaine itération
-    conversationMessages.push({ role: 'assistant', content: assistantContent });
+    // Construit le message assistant à pousser dans l'historique
+    const assistantParts: Part[] = [];
+    if (collectedText) {
+      assistantParts.push({ text: collectedText });
+    }
+    for (const fc of collectedFunctionCalls) {
+      assistantParts.push({ functionCall: { name: fc.name, args: fc.args } });
+    }
+    if (assistantParts.length > 0) {
+      conversation.push({ role: 'model', parts: assistantParts });
+    }
 
-    if (stopReason !== 'tool_use') {
-      // Fin de tour
+    // Pas de function calls → fin du tour
+    if (collectedFunctionCalls.length === 0) {
       yield {
         type: 'done',
-        usage: usage ? {
-          input_tokens: usage.input_tokens,
-          output_tokens: usage.output_tokens,
-          cache_read_input_tokens: usage.cache_read_input_tokens || 0,
-        } : undefined,
+        usage: {
+          input_tokens: totalInputTokens,
+          output_tokens: totalOutputTokens,
+        },
       };
       return;
     }
 
-    // Exécute tous les tool_use blocks et accumule les résultats
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of assistantContent) {
-      if (block.type === 'tool_use') {
-        yield {
-          type: 'tool_use',
-          tool_name: block.name,
-          tool_input: block.input,
-        };
-        const result = await executeTool(block.name, block.input, userId);
-        yield {
-          type: 'tool_result',
-          tool_name: block.name,
-          tool_result: result,
-        };
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
-          content: result,
-        });
-      }
+    // Exécute chaque function call et accumule les responses
+    const responseParts: Part[] = [];
+    for (const fc of collectedFunctionCalls) {
+      yield {
+        type: 'tool_use',
+        tool_name: fc.name,
+        tool_input: fc.args,
+      };
+      const resultJson = await executeTool(fc.name, fc.args, userId);
+      yield {
+        type: 'tool_result',
+        tool_name: fc.name,
+        tool_result: resultJson,
+      };
+      // Gemini attend un objet, pas une string — on parse pour donner un response structuré
+      let parsed: any;
+      try { parsed = JSON.parse(resultJson); } catch { parsed = { result: resultJson }; }
+      responseParts.push({
+        functionResponse: {
+          name: fc.name,
+          response: parsed,
+        },
+      });
     }
 
-    if (toolResults.length === 0) {
-      // Stop_reason était tool_use mais pas de blocks ? Bail
-      yield { type: 'done' };
-      return;
-    }
-
-    conversationMessages.push({ role: 'user', content: toolResults });
+    // Ajoute les function responses comme tour 'user' (convention Gemini)
+    conversation.push({ role: 'user', parts: responseParts });
     // Loop continue
   }
 
