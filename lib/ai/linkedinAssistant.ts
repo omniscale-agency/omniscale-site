@@ -397,11 +397,12 @@ export async function* streamAssistant(
         tool_choice: 'auto',
         temperature: 0.6,        // un peu plus bas pour fiabiliser les tool args JSON
         max_tokens: 4096,
-        // gpt-oss fait du chain-of-thought interne ; on garde ça court pour
-        // pas faire attendre l'utilisateur avant que le texte commence à streamer
-        reasoning_effort: 'low',
         stream: true,
-      } as any);
+        // gpt-oss fait du chain-of-thought interne ; on garde ça court pour
+        // pas faire attendre l'utilisateur avant que le texte commence à streamer.
+        // (param non typé par le SDK Groq, mais l'API l'accepte)
+        ...({ reasoning_effort: 'low' } as Record<string, unknown>),
+      });
 
       for await (const chunk of stream) {
         const choice = chunk.choices?.[0];
