@@ -24,7 +24,14 @@ import Groq from 'groq-sdk';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { publishTextPost } from '@/lib/social/linkedin';
 
-export const MODEL = 'llama-3.3-70b-versatile';
+// On utilise gpt-oss-120b plutôt que llama-3.3-70b-versatile parce que Llama 3.3
+// échoue régulièrement à générer un JSON valide pour les tool_call.arguments
+// quand le contenu est en français avec des apostrophes / multi-lignes / hashtags,
+// ce qui produit l'erreur Groq "Failed to call a function. Please adjust your
+// prompt. See 'failed_generation' for more details." Le modèle gpt-oss-120b
+// (open-weights OpenAI) est nettement plus robuste sur le structured output
+// et le tool calling, et reste sur le free tier Groq.
+export const MODEL = 'openai/gpt-oss-120b';
 
 /** System prompt — gardé stable. */
 export const SYSTEM_PROMPT = `Tu es l'assistant marketing d'Omniscale, une agence française qui scale les business via social media, ads, sites internet, marketing d'influence et production de contenu.
@@ -388,10 +395,13 @@ export async function* streamAssistant(
         messages: conversation,
         tools: TOOLS,
         tool_choice: 'auto',
-        temperature: 0.7,
+        temperature: 0.6,        // un peu plus bas pour fiabiliser les tool args JSON
         max_tokens: 4096,
+        // gpt-oss fait du chain-of-thought interne ; on garde ça court pour
+        // pas faire attendre l'utilisateur avant que le texte commence à streamer
+        reasoning_effort: 'low',
         stream: true,
-      });
+      } as any);
 
       for await (const chunk of stream) {
         const choice = chunk.choices?.[0];
