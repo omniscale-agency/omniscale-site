@@ -535,9 +535,13 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send();
+                // Entrée envoie ; Shift+Entrée fait un retour à la ligne (standard chat UX)
+                if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+                  e.preventDefault();
+                  send();
+                }
               }}
-              placeholder="Demande à l'assistant... (Cmd+Entrée pour envoyer)"
+              placeholder="Demande à l'assistant... (Entrée pour envoyer · Maj+Entrée pour retour à la ligne)"
               rows={3}
               disabled={streaming}
               className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-lilac/50 text-sm resize-none disabled:opacity-50"
@@ -546,7 +550,7 @@ function AiTab({ onToast }: { onToast: (t: { type: 'ok' | 'err'; msg: string } |
               onClick={send}
               disabled={!input.trim() || streaming}
               className="inline-flex items-center gap-2 bg-lilac text-ink font-semibold px-5 py-3 rounded-xl text-sm hover:bg-white transition-colors disabled:opacity-50"
-              title="Envoyer (Cmd+Entrée)"
+              title="Envoyer (Entrée)"
             >
               {streaming ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
             </button>
