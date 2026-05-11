@@ -30,7 +30,7 @@ export interface YouTubeVideo {
 
 export const YOUTUBE_VIDEOS: Array<YouTubeVideo | null> = [
   { id: 'UEgrx8NhuQs', title: 'Les 5 process qui font exploser ton CA (méthode Omniscale)' },
-  null,
+  { id: 'WrLfHRlK0Ec', title: 'Pourquoi 90% des commerces physiques échouent en ligne (et comment l\'éviter)' },
   null,
 ];
 
