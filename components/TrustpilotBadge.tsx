@@ -23,7 +23,9 @@ export default function TrustpilotBadge({
   className = '',
 }: Props) {
   const { url, rating, reviewCount, label } = TRUSTPILOT;
-  const stars = Math.round(rating); // arrondi à l'entier le plus proche pour les blocs verts pleins
+  // Affichage visuel : on arrondit à la demi-étoile supérieure la plus proche
+  // (4.3 → 4.5 étoiles colorées) pour matcher le rendu Trustpilot officiel.
+  const visualRating = Math.ceil(rating * 2) / 2;
   const ratingFr = rating.toFixed(1).replace('.', ',');
 
   if (variant === 'compact') {
@@ -35,7 +37,7 @@ export default function TrustpilotBadge({
         className={`inline-flex items-center gap-2 hover:opacity-80 transition-opacity ${center ? 'mx-auto' : ''} ${className}`}
         title={`${label} — ${ratingFr}/5 sur Trustpilot (${reviewCount} avis)`}
       >
-        <Stars filled={stars} size={18} />
+        <Stars filled={visualRating} size={18} />
         <span className="text-sm text-white/80">
           <strong className="text-white">{ratingFr}</strong>
           <span className="text-white/50"> · {reviewCount} avis sur </span>
@@ -58,7 +60,7 @@ export default function TrustpilotBadge({
           <TrustpilotLogo />
           <span className="font-display font-bold text-base text-white">Trustpilot</span>
         </div>
-        <Stars filled={stars} size={28} />
+        <Stars filled={visualRating} size={28} />
         <div className="text-sm text-white/80">
           <strong className="text-white text-lg">{label}</strong>
           <span className="text-white/50"> · </span>
@@ -75,26 +77,45 @@ export default function TrustpilotBadge({
 }
 
 /**
- * 5 carrés Trustpilot officiels (verts/blancs).
- * `filled` = nombre d'étoiles vertes (0..5).
+ * 5 carrés Trustpilot officiels.
+ * `filled` = note décimale 0..5 (ex 4.5 = 4 carrés verts pleins + 1 demi-vert).
  */
 function Stars({ filled, size }: { filled: number; size: number }) {
   return (
     <div className="inline-flex items-center gap-0.5" aria-label={`${filled} étoiles sur 5`}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Star key={i} filled={i < filled} size={size} />
-      ))}
+      {[0, 1, 2, 3, 4].map((i) => {
+        // Pour chaque case, calcule le pourcentage de remplissage 0/50/100
+        const fillPct =
+          filled >= i + 1 ? 100 :
+          filled >= i + 0.5 ? 50 :
+          0;
+        return <Star key={i} fillPct={fillPct} size={size} />;
+      })}
     </div>
   );
 }
 
-function Star({ filled, size }: { filled: boolean; size: number }) {
-  // Carré arrondi vert Trustpilot avec étoile blanche au centre.
-  // Quand non rempli : carré gris (#dcdce6) avec étoile blanche.
-  const bg = filled ? '#00b67a' : '#dcdce6';
+function Star({ fillPct, size }: { fillPct: number; size: number }) {
+  // Carré arrondi Trustpilot. Si fillPct=100 : tout vert.
+  // Si fillPct=0 : tout gris. Si fillPct=50 : moitié gauche verte, moitié droite grise.
+  const id = `tp-half-${size}-${fillPct}`;
+  const isFull = fillPct >= 100;
+  const isEmpty = fillPct <= 0;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect width="24" height="24" rx="3" fill={bg} />
+      {isFull || isEmpty ? (
+        <rect width="24" height="24" rx="3" fill={isFull ? '#00b67a' : '#dcdce6'} />
+      ) : (
+        <>
+          <defs>
+            <linearGradient id={id} x1="0" y1="0" x2="1" y2="0">
+              <stop offset={`${fillPct}%`} stopColor="#00b67a" />
+              <stop offset={`${fillPct}%`} stopColor="#dcdce6" />
+            </linearGradient>
+          </defs>
+          <rect width="24" height="24" rx="3" fill={`url(#${id})`} />
+        </>
+      )}
       <path
         d="M12 4.5l2.245 4.55 5.02.73-3.633 3.541.857 5.001L12 15.95l-4.49 2.372.857-5.001L4.735 9.78l5.02-.73L12 4.5z"
         fill="#fff"

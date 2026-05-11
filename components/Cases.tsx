@@ -48,6 +48,87 @@ const cases: CaseStudy[] = [
       author: 'Équipe French Retailers',
     },
   },
+  {
+    client: 'Maxime',
+    sector: 'Agence de location',
+    result: '+30k€ dès le premier mois',
+    color: 'from-amber-400/30 to-orange-700/30',
+    tags: ['Site', 'Ads', 'Conversion'],
+    image: '/images/cases/maxime.jpg',
+    fallback: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1400&q=80&auto=format&fit=crop',
+    context: "Agence de location avec une demande locale forte mais un funnel d'acquisition bancal : trafic correct mais peu de conversions, pas de tracking propre, et une présence digitale décousue.",
+    duration: '1 mois pour les premiers résultats',
+    services: ['Refonte tunnel de conversion', 'Publicité Meta + Google Ads', 'Tracking + reporting'],
+    story: [
+      "Audit du tunnel existant : restructuration complète des pages clés (offre, simulateur, prise de contact) pour réduire les frictions de conversion.",
+      "Lancement de campagnes Meta + Google ciblées sur l'audience locale, avec suivi des leads de bout en bout (form → CRM → contrat).",
+      "Mise en place d'un reporting hebdo simple : coût par lead, taux de signature, ROAS net — pour piloter sans devinette.",
+    ],
+    metrics: [
+      { value: '+30k€', label: 'CA additionnel', sub: 'dès le 1er mois' },
+      { value: 'En cours', label: 'Mission', sub: 'site + ads + tracking' },
+      { value: '1 mois', label: 'Délai 1ers résultats', sub: 'depuis le go' },
+      { value: 'Vidéo', label: 'Témoignage', sub: 'visible ci-dessus' },
+    ],
+    quote: {
+      text: "Le premier mois on a fait +30k€. Ils savent vraiment de quoi ils parlent.",
+      author: 'Maxime — Agence de location',
+    },
+  },
+  {
+    client: 'Maria',
+    sector: 'Institut de beauté • Londres',
+    result: 'Agenda complet sur 4 semaines',
+    color: 'from-pink-400/30 to-rose-700/30',
+    tags: ['Insta', 'Local', 'Booking'],
+    image: '/images/cases/maria.jpg',
+    fallback: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1400&q=80&auto=format&fit=crop',
+    context: "Institut de beauté à Londres, qualité de prestation excellente mais un Insta peu actif et aucun système d'acquisition digital. L'agenda était à moitié vide certaines semaines.",
+    duration: '4 semaines pour remplir l\'agenda',
+    services: ['Stratégie Insta + production de contenu', 'Acquisition locale ciblée', 'Optimisation booking'],
+    story: [
+      "Plan de contenu Insta axé sur les transformations clientes (avant/après) et les coulisses du salon, pour humaniser et créer de la preuve sociale.",
+      "Acquisition locale ciblée Londres + boost des stories à fort engagement pour maximiser la portée organique.",
+      "Optimisation du flow de prise de rendez-vous (lien direct, rappel automatique) pour ne plus perdre de leads entre l'intérêt et la réservation.",
+    ],
+    metrics: [
+      { value: '4 sem.', label: 'Pour remplir', sub: 'l\'agenda complet' },
+      { value: 'Complet', label: 'Statut actuel', sub: 'liste d\'attente' },
+      { value: 'Londres', label: 'Marché', sub: 'acquisition locale' },
+      { value: 'Vidéo', label: 'Témoignage', sub: 'visible ci-dessus' },
+    ],
+    quote: {
+      text: "En 4 semaines mon agenda était complet. Je n'avais jamais eu ça.",
+      author: 'Maria — Institut de beauté Londres',
+    },
+  },
+  {
+    client: 'Alex',
+    sector: 'Boutique de parfums de niche • Lyon',
+    result: '+22k€ dès le premier mois',
+    color: 'from-violet-500/30 to-purple-800/30',
+    tags: ['E-commerce', 'Insta', 'Ads'],
+    image: '/images/cases/alex.jpg',
+    fallback: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=1400&q=80&auto=format&fit=crop',
+    context: "Boutique de parfums de niche à Lyon, identité forte et catalogue pointu, mais une visibilité limitée à un public local. Quasi pas de ventes en ligne malgré un vrai potentiel.",
+    duration: '1 mois pour les premiers résultats',
+    services: ['Stratégie e-commerce', 'Production de contenu Insta', 'Publicité Meta'],
+    story: [
+      "Refonte de la stratégie produit en ligne : mise en avant des univers olfactifs et des histoires des marques pour créer de la désirabilité.",
+      "Production de contenu Insta autour des accords parfumés, des nouveautés en boutique, et des conseils du gérant — format storytelling premium.",
+      "Lancement de campagnes Meta ciblées sur les amateurs de parfumerie de niche en France, avec retargeting des visiteurs site.",
+    ],
+    metrics: [
+      { value: '+22k€', label: 'CA additionnel', sub: 'dès le 1er mois' },
+      { value: 'Lyon', label: 'Marché initial', sub: 'extension France' },
+      { value: 'En cours', label: 'Mission', sub: 'e-com + social + ads' },
+      { value: 'Vidéo', label: 'Témoignage', sub: 'visible ci-dessus' },
+    ],
+    quote: {
+      text: "+22k€ le premier mois. Sur une boutique de niche, c'est énorme.",
+      author: 'Alex — Boutique de parfums de niche, Lyon',
+    },
+  },
 ];
 
 export default function Cases() {
@@ -71,12 +152,11 @@ export default function Cases() {
             Des résultats <span className="text-gradient">qu'on assume.</span>
           </h2>
           <p className="text-white/60 mt-6 max-w-2xl">
-            Clique sur un client pour voir le détail de l'intervention. D'autres cas en cours
-            de validation — preuves visuelles dans le showreel ci-dessus.
+            Clique sur un client pour voir le détail de l'intervention et les chiffres.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {cases.map((c, i) => (
             <motion.button
               key={c.client}
