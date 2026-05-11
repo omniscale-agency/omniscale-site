@@ -317,6 +317,38 @@ export function templateNewBookingAdmin(opts: {
   });
 }
 
+export function templateRecruitmentApplication(opts: {
+  name: string;
+  email: string;
+  phone?: string;
+  position: string;
+  portfolio?: string;
+  message: string;
+}) {
+  const safe = (s?: string) =>
+    (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return shell({
+    preheader: `Nouvelle candidature : ${opts.name} — ${opts.position}`,
+    title: `🚀 Nouvelle candidature`,
+    body: `
+      <p>Quelqu'un veut rejoindre l'équipe Omniscale.</p>
+      <div style="margin:24px 0;padding:20px;background:rgba(183,148,232,0.08);border:1px solid rgba(183,148,232,0.2);border-radius:14px;">
+        <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#B794E8;">${safe(opts.name)}</p>
+        <p style="margin:6px 0;color:#aaa;">📧 <a href="mailto:${safe(opts.email)}" style="color:#fff;text-decoration:none;">${safe(opts.email)}</a></p>
+        ${opts.phone ? `<p style="margin:6px 0;color:#aaa;">📞 ${safe(opts.phone)}</p>` : ''}
+        <p style="margin:6px 0;color:#aaa;">💼 Poste : <strong style="color:#fff;">${safe(opts.position)}</strong></p>
+        ${opts.portfolio ? `<p style="margin:6px 0;color:#aaa;">🔗 Portfolio / LinkedIn : <a href="${safe(opts.portfolio)}" style="color:#B794E8;text-decoration:none;">${safe(opts.portfolio)}</a></p>` : ''}
+      </div>
+      <div style="margin:24px 0;padding:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;">
+        <p style="margin:0 0 8px;font-size:13px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Message du candidat</p>
+        <p style="margin:0;white-space:pre-wrap;color:#f5f0ff;line-height:1.6;">${safe(opts.message)}</p>
+      </div>
+    `,
+    ctaLabel: `Répondre à ${opts.name.split(' ')[0] || 'candidat'}`,
+    ctaUrl: `mailto:${opts.email}`,
+  });
+}
+
 export function templateWelcomeLead(opts: { name: string }) {
   return shell({
     preheader: `Bienvenue chez Omniscale ${opts.name} ! Ton compte est prêt.`,

@@ -5,6 +5,7 @@ import {
   templateNewLeadAdmin, templateWelcomeLead,
   templateCancelTask, templateCancelEvent,
   templateBookingConfirmed, templateNewBookingAdmin,
+  templateRecruitmentApplication,
 } from '@/lib/emailTemplates';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
@@ -73,6 +74,10 @@ export async function POST(req: NextRequest) {
         html = templateNewBookingAdmin(data as any);
         break;
       }
+      case 'recruitment_application':
+        subject = `🚀 Candidature ${data.position} — ${data.name}`;
+        html = templateRecruitmentApplication(data as any);
+        break;
       case 'welcome_lead':
         subject = `Bienvenue chez Omniscale 👋`;
         html = templateWelcomeLead(data as any);

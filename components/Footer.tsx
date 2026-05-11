@@ -24,11 +24,12 @@ export default function Footer() {
           <div>
             <div className="text-white font-semibold mb-4">Navigation</div>
             <ul className="space-y-2 text-white/60 text-sm">
-              <li><a href="#services" className="hover:text-lilac">Services</a></li>
-              <li><a href="#showreel" className="hover:text-lilac">Showreel</a></li>
-              <li><a href="#cas" className="hover:text-lilac">Cas clients</a></li>
-              <li><a href="#agence" className="hover:text-lilac">Agence</a></li>
-              <li><a href="#faq" className="hover:text-lilac">FAQ</a></li>
+              <li><a href="/#services" className="hover:text-lilac">Services</a></li>
+              <li><a href="/#showreel" className="hover:text-lilac">Showreel</a></li>
+              <li><a href="/#cas" className="hover:text-lilac">Cas clients</a></li>
+              <li><a href="/#agence" className="hover:text-lilac">Agence</a></li>
+              <li><a href="/#faq" className="hover:text-lilac">FAQ</a></li>
+              <li><a href="/recrutement" className="hover:text-lilac">Recrutement</a></li>
             </ul>
           </div>
 
