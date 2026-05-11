@@ -14,8 +14,6 @@ interface VideoTestimonial {
 // Liste des témoignages vidéo affichés sur le site.
 // Pour ajouter de nouveaux avis : ajoute une entrée { src, poster, ... }
 // Les fichiers correspondants vont dans /public/videos/testimonials.
-// (Les vidéos 2 et 3 sont temporairement retirées en attendant plus
-// d'avis clients récents — fichiers conservés en local pour réactivation.)
 const VIDEOS: Array<VideoTestimonial | null> = [
   {
     src: '/videos/testimonials/1.mp4',
@@ -38,6 +36,21 @@ const VIDEOS: Array<VideoTestimonial | null> = [
     role: 'Salon de coiffure',
     result: 'Listes d\'attente complètes',
   },
+  {
+    src: '/videos/testimonials/6.mp4',
+    poster: '/videos/testimonials/6-poster.jpg',
+    name: 'Alex',
+    role: 'Boutique de parfums de niche • Lyon',
+    result: '+22k € dès le premier mois',
+  },
+  {
+    src: '/videos/testimonials/7.mp4',
+    poster: '/videos/testimonials/7-poster.jpg',
+    name: 'Maria',
+    role: 'Institut de beauté • Londres',
+    result: 'Complet sur 4 semaines',
+  },
+  null, // 6e slot = "Bientôt" pour garder une grille propre 3×2
 ];
 
 export default function VideoTestimonials() {
