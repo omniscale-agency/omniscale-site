@@ -129,6 +129,33 @@ const cases: CaseStudy[] = [
       author: 'Alex — Boutique de parfums de niche, Lyon',
     },
   },
+  {
+    client: 'SOPRA Real Estate',
+    sector: 'Immobilier • Dubai',
+    result: 'Couvert par Forbes, BFM Business & C News',
+    color: 'from-emerald-400/30 to-teal-700/30',
+    tags: ['Branding', 'Contenu', 'Médias'],
+    image: '/images/cases/sopra.jpg',
+    fallback: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1400&q=80&auto=format&fit=crop',
+    context: "Agence immobilière francophone basée à Business Bay (Dubai), spécialisée dans l'accompagnement d'investisseurs francophones sur le marché émirati. Expertise solide mais visibilité digitale à construire pour asseoir l'autorité de la marque auprès d'une cible exigeante.",
+    duration: 'En cours',
+    services: ['Branding & positionnement', 'Production de contenu', 'Relations médias', 'Social Media'],
+    story: [
+      "Travail de fond sur le positionnement : faire de SOPRA LA référence francophone de l'immobilier à Dubai, avec un discours premium et une ligne éditoriale crédible.",
+      "Mise en place d'une machine de contenu axée expertise marché (analyses, coulisses des projets, témoignages investisseurs) pour nourrir l'autorité de la marque.",
+      "Stratégie de relations médias : SOPRA a été couverte par Forbes, BFM Business et C News — une visibilité qui ancre durablement la crédibilité de l'agence.",
+    ],
+    metrics: [
+      { value: 'Forbes', label: 'Couverture média', sub: 'presse internationale' },
+      { value: 'BFM', label: 'BFM Business', sub: 'plateau TV' },
+      { value: 'C News', label: 'Passage média', sub: 'chaîne nationale' },
+      { value: 'En cours', label: 'Mission', sub: 'branding + contenu' },
+    ],
+    quote: {
+      text: "Omniscale a structuré notre image de marque et nous a ouvert les portes des médias.",
+      author: 'Équipe SOPRA Real Estate',
+    },
+  },
 ];
 
 export default function Cases() {

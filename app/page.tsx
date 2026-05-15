@@ -6,6 +6,7 @@ import Marquee from '@/components/Marquee';
 import Services from '@/components/Services';
 import Showreel from '@/components/Showreel';
 import Cases from '@/components/Cases';
+import PressBand from '@/components/PressBand';
 import VideoTestimonials from '@/components/VideoTestimonials';
 import Process from '@/components/Process';
 import About from '@/components/About';
@@ -24,6 +25,7 @@ export default function Home() {
       <Services />
       <Showreel />
       <Cases />
+      <PressBand />
       <VideoTestimonials />
       <Process />
       <About />
