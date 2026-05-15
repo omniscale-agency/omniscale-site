@@ -39,7 +39,7 @@ export default function PressBand() {
         >
           <PressLogo src="/images/press/forbes.svg" alt="Forbes" className="h-7 md:h-8" />
           <Divider />
-          <PressLogo src="/images/press/bfm.svg" alt="BFM Business" className="h-12 md:h-14" />
+          <PressLogo src="/images/press/bfm.svg" alt="BFM Business" className="h-10 md:h-12" invert={false} />
           <Divider />
           <PressLogo src="/images/press/cnews.svg" alt="CNews" className="h-7 md:h-8" />
         </motion.div>
@@ -57,7 +57,18 @@ function Divider() {
  * uniforme et discret sur le fond sombre, légèrement atténué puis
  * pleinement visible au survol. Standard des bandeaux "vu dans".
  */
-function PressLogo({ src, alt, className }: { src: string; alt: string; className: string }) {
+function PressLogo({
+  src,
+  alt,
+  className,
+  invert = true,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+  /** Applique le filtre monochrome blanc. Mettre `false` si le SVG est déjà blanc. */
+  invert?: boolean;
+}) {
   return (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img
@@ -65,7 +76,7 @@ function PressLogo({ src, alt, className }: { src: string; alt: string; classNam
       alt={alt}
       loading="lazy"
       className={`${className} w-auto object-contain opacity-60 hover:opacity-100 transition-opacity`}
-      style={{ filter: 'brightness(0) invert(1)' }}
+      style={invert ? { filter: 'brightness(0) invert(1)' } : undefined}
     />
   );
 }
