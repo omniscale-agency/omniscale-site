@@ -37,11 +37,11 @@ export default function PressBand() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="flex flex-wrap items-center justify-center gap-x-14 gap-y-8"
         >
-          <ForbesMark />
+          <PressLogo src="/images/press/forbes.svg" alt="Forbes" className="h-7 md:h-8" />
           <Divider />
-          <BfmBusinessMark />
+          <PressLogo src="/images/press/bfm.svg" alt="BFM Business" className="h-12 md:h-14" />
           <Divider />
-          <CNewsMark />
+          <PressLogo src="/images/press/cnews.svg" alt="CNews" className="h-7 md:h-8" />
         </motion.div>
       </div>
     </section>
@@ -52,42 +52,21 @@ function Divider() {
   return <span className="hidden sm:block w-px h-8 bg-white/10" aria-hidden="true" />;
 }
 
-/** Wordmark Forbes — serif, capitale initiale, tracking serré. */
-function ForbesMark() {
+/**
+ * Logo presse — affiché en monochrome blanc (filtre CSS) pour un rendu
+ * uniforme et discret sur le fond sombre, légèrement atténué puis
+ * pleinement visible au survol. Standard des bandeaux "vu dans".
+ */
+function PressLogo({ src, alt, className }: { src: string; alt: string; className: string }) {
   return (
-    <span
-      className="font-display text-3xl md:text-4xl font-bold text-white/70 hover:text-white transition-colors select-none"
-      style={{ letterSpacing: '-0.02em' }}
-      aria-label="Forbes"
-    >
-      Forbes
-    </span>
-  );
-}
-
-/** Wordmark BFM Business — sans-serif bold, "BFM" plein + "BUSINESS" léger. */
-function BfmBusinessMark() {
-  return (
-    <span className="inline-flex items-baseline gap-1.5 select-none" aria-label="BFM Business">
-      <span className="text-2xl md:text-3xl font-extrabold tracking-tight text-white/70 hover:text-white transition-colors">
-        BFM
-      </span>
-      <span className="text-lg md:text-xl font-light tracking-[0.15em] uppercase text-white/55">
-        Business
-      </span>
-    </span>
-  );
-}
-
-/** Wordmark CNEWS — sans-serif bold condensé. */
-function CNewsMark() {
-  return (
-    <span
-      className="text-2xl md:text-3xl font-extrabold tracking-tight text-white/70 hover:text-white transition-colors select-none"
-      aria-label="CNEWS"
-    >
-      C<span className="text-white/55">NEWS</span>
-    </span>
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      className={`${className} w-auto object-contain opacity-60 hover:opacity-100 transition-opacity`}
+      style={{ filter: 'brightness(0) invert(1)' }}
+    />
   );
 }
 
