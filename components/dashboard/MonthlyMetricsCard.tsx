@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 import Card from './Card';
 import { ClientMetric, METRIC_CATALOG, METRIC_BY_KEY, MetricKey, monthlySeries } from '@/lib/metricsStore';
@@ -95,10 +95,16 @@ export default function MonthlyMetricsCard({
         })}
       </div>
 
-      {/* Bar chart */}
+      {/* Line chart — style Shopify (courbe lissée + dégradé sous la ligne) */}
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id={`grad-${activeKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLORS[activeKey] || '#B794E8'} stopOpacity={0.32} />
+                <stop offset="100%" stopColor={COLORS[activeKey] || '#B794E8'} stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis
               dataKey="month"
@@ -125,13 +131,16 @@ export default function MonthlyMetricsCard({
               labelStyle={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginBottom: 4 }}
               formatter={(v: number) => [fmt(v), def.label]}
             />
-            <Bar
+            <Area
+              type="monotone"
               dataKey="value"
-              fill={COLORS[activeKey] || '#B794E8'}
-              radius={[6, 6, 0, 0]}
-              maxBarSize={42}
+              stroke={COLORS[activeKey] || '#B794E8'}
+              strokeWidth={2.5}
+              fill={`url(#grad-${activeKey})`}
+              dot={false}
+              activeDot={{ r: 4, strokeWidth: 0 }}
             />
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </Card>
