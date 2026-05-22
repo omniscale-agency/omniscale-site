@@ -22,7 +22,7 @@ export default function TrustpilotBadge({
   center = false,
   className = '',
 }: Props) {
-  const { url, rating, reviewCount, label } = TRUSTPILOT;
+  const { url, rating, label } = TRUSTPILOT;
   // Affichage visuel : on arrondit à la demi-étoile supérieure la plus proche
   // (4.3 → 4.5 étoiles colorées) pour matcher le rendu Trustpilot officiel.
   const visualRating = Math.ceil(rating * 2) / 2;
@@ -35,12 +35,12 @@ export default function TrustpilotBadge({
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center gap-2 hover:opacity-80 transition-opacity ${center ? 'mx-auto' : ''} ${className}`}
-        title={`${label} — ${ratingFr}/5 sur Trustpilot (${reviewCount} avis)`}
+        title={`${label} — ${ratingFr}/5 sur Trustpilot`}
       >
         <Stars filled={visualRating} size={18} />
         <span className="text-sm text-white/80">
           <strong className="text-white">{ratingFr}</strong>
-          <span className="text-white/50"> · {reviewCount} avis sur </span>
+          <span className="text-white/50"> · Avis vérifiés sur </span>
           <strong className="text-white">Trustpilot</strong>
         </span>
       </a>
@@ -66,7 +66,7 @@ export default function TrustpilotBadge({
           <span className="text-white/50"> · </span>
           <strong className="text-white">{ratingFr}/5</strong>
           <span className="text-white/50"> · </span>
-          <span>{reviewCount} avis vérifiés</span>
+          <span>Avis vérifiés</span>
         </div>
         <span className="text-xs text-[#00b67a] group-hover:underline">
           Voir tous les avis →

@@ -69,7 +69,7 @@ const REVIEWS: Review[] = [
 ];
 
 export default function TrustpilotReviews() {
-  const { url, reviewUrl, rating, reviewCount, label } = TRUSTPILOT;
+  const { url, reviewUrl, rating, label } = TRUSTPILOT;
   const ratingFr = rating.toFixed(1).replace('.', ',');
 
   return (
@@ -107,7 +107,7 @@ export default function TrustpilotReviews() {
               <strong className="text-white">{label}</strong>
               <span className="text-white/50"> · </span>
               <strong className="text-white">{ratingFr}/5</strong>
-              <span className="text-white/50"> · {reviewCount} avis vérifiés</span>
+              <span className="text-white/50"> · Avis vérifiés</span>
             </span>
           </a>
         </motion.div>
@@ -150,7 +150,7 @@ export default function TrustpilotReviews() {
             rel="noopener noreferrer"
             className="px-6 py-3 rounded-full border border-white/15 text-white/85 text-sm font-medium hover:border-white/30 hover:bg-white/[0.04] transition-colors"
           >
-            Voir les {reviewCount} avis sur Trustpilot
+            Voir tous les avis sur Trustpilot
           </a>
           <a
             href={reviewUrl}
