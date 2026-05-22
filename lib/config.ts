@@ -15,9 +15,9 @@ export const TRUSTPILOT = {
   url: 'https://fr.trustpilot.com/review/omniscale.fr',
   reviewUrl: 'https://fr.trustpilot.com/evaluate/omniscale.fr',
   rating: 4.3,
-  reviewCount: 6,
+  reviewCount: 7,
   /** Label officiel Trustpilot — Excellent / Bien / Moyen / Mauvais / Médiocre */
-  label: 'Bien',
+  label: 'Excellent',
 } as const;
 
 // Liste des dernières vidéos YouTube (les plus récentes en premier).

@@ -8,6 +8,7 @@ import Showreel from '@/components/Showreel';
 import Cases from '@/components/Cases';
 import PressBand from '@/components/PressBand';
 import VideoTestimonials from '@/components/VideoTestimonials';
+import TrustpilotReviews from '@/components/TrustpilotReviews';
 import Process from '@/components/Process';
 import About from '@/components/About';
 import FAQ from '@/components/FAQ';
@@ -27,6 +28,7 @@ export default function Home() {
       <Cases />
       <PressBand />
       <VideoTestimonials />
+      <TrustpilotReviews />
       <Process />
       <About />
       <FAQ />
